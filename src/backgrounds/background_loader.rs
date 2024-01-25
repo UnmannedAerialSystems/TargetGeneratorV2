@@ -4,15 +4,11 @@ use anyhow::{anyhow, Result};
 use image::{ImageBuffer, Rgb, RgbImage};
 
 pub struct BackgroundLoader {
-    pub backgrounds: Option<Vec<RgbImage>>,
+    pub backgrounds: Vec<RgbImage>,
 }
 
 impl BackgroundLoader {
-    pub fn load_backgrounds(&mut self, dir: &Path) -> Result<Vec<RgbImage>> {
-        if self.backgrounds.is_some() {
-            return Ok(self.backgrounds.clone().unwrap());
-        }
-
+    pub fn new(dir: &Path) -> Result<BackgroundLoader> {
         let mut v = vec![];
 
         if !dir.is_dir() {
@@ -32,8 +28,8 @@ impl BackgroundLoader {
             v.push(img);
         }
 
-        self.backgrounds = Some(v.clone()); // cached
-
-        return Ok(v);
+        Ok(Self {
+            backgrounds: v
+        })
     }
 }
