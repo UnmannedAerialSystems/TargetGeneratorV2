@@ -1,5 +1,6 @@
 mod backgrounds;
 mod shapes;
+mod generator;
 
 use std::thread;
 use std::time::Duration;
@@ -20,6 +21,8 @@ fn main() {
             image.put_pixel(i, j, Rgb([255, 255, 255]));
         }
     }
+
+    image = image::imageops::rotate90(&image);
 
     image.save("output.png").unwrap();
 }

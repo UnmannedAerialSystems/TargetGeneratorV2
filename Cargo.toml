@@ -13,3 +13,20 @@ clap = {version = "4.4.18", features = ["default"]}
 simple_logger = "4.3.3"
 log = "0.4.20"
 rand = {version = "0.8.5", features = ["default"]}
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+opt-level = 3 # Maximum optimization
+overflow-checks = true   # Enables runtime integer overflow checks.
+lto = true
+panic = 'unwind'
+incremental = true
+codegen-units = 16
+
+[term]
+quiet = false          # whether cargo output is quiet
+verbose = false        # whether cargo provides verbose output
+color = 'auto'         # whether cargo colorizes output
+hyperlinks = true      # whether cargo inserts links into output
+progress.when = 'auto' # whether cargo shows progress bar
+progress.width = 80    # width of progress bar
