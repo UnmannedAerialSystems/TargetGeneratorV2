@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
 use anyhow::{anyhow, Result};
-use image::{RgbaImage, RgbImage};
+use image::{Pixel, RgbaImage, RgbImage};
 use log::{debug, trace, warn};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -84,4 +84,36 @@ pub enum Shape {
     SEMICIRCLE(RgbaImage),
     QUARTERCIRCLE(RgbaImage),
     TRIANGLE(RgbaImage),
+}
+
+#[test]
+pub fn load_shapes() {
+    let shapes = ShapeManager::new(Path::new("shapes")).unwrap();
+
+    if let Some(shape) = shapes.random() {
+        match shape {
+            Shape::CIRCLE(c) => {
+                let mut c = c.clone();
+
+                println!("Ran");
+
+                for i in 0..c.width() {
+                    for j in 0..c.height() {
+                        let p = c.get_pixel(i, j);
+
+                        if p.0[0] > 100 || p.0[1] > 100 || p.0[2] > 100 { // test auto-generating varying shape colors
+                            c.put_pixel(i, j, image::Rgba([255, 255, 255, 255]));
+                        }
+                    }
+                }
+
+                c.save("output.png").unwrap()
+            }
+            Shape::SEMICIRCLE(_) => {}
+            Shape::QUARTERCIRCLE(_) => {}
+            Shape::TRIANGLE(_) => {}
+        }
+    } else {
+        println!("No shapes found!");
+    }
 }
