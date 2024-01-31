@@ -3,15 +3,16 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
 use anyhow::{anyhow, Result};
-use image::{Pixel, RgbaImage, RgbImage};
+use image::RgbaImage;
 use log::{debug, trace, warn};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use rayon::iter::ParallelBridge;
+use rayon::iter::{IntoParallelRefIterator, ParallelBridge};
 use rayon::iter::ParallelIterator;
 
 pub struct ShapeManager {
     shapes: Vec<Shape>,
+    color_variants: Vec<Shape>
 }
 
 impl ShapeManager {
@@ -66,10 +67,26 @@ impl ShapeManager {
         });
 
         let x = Ok(Self {
-            shapes: v.lock().unwrap().to_vec()
+            shapes: v.lock().unwrap().to_vec(),
+            color_variants: vec![]
         });
 
         x
+    }
+
+    pub fn generate_color_variants(mut self, colors: Vec<ShapeColor>) -> Result<Self> {
+        let vec = Mutex::new(vec![]);
+
+        for s in &self.shapes {
+            colors.par_iter().for_each(|x| {
+                let s = s.get_color(x).unwrap();
+                vec.lock().unwrap().push(s);
+            });
+        }
+
+        self.color_variants = vec.lock().unwrap().to_vec();
+
+        Ok(self)
     }
 
     pub fn random(&self) -> Option<&Shape> {
@@ -86,7 +103,72 @@ pub enum Shape {
     TRIANGLE(RgbaImage),
 }
 
+impl Shape {
+    pub fn get_color(&self, color: &ShapeColor) -> Result<Shape> {
+        let image = self.get_inner_image();
+
+        let mut image = image.clone();
+
+        for i in 0..image.width() {
+            for j in 0..image.height() {
+                let p = image.get_pixel(i, j);
+
+                // if alpha is greater than 10, set to whatever color
+                if p.0[3] > 10 { // test auto-generating varying shape colors
+                    image.put_pixel(i, j, image::Rgba(color.get_rgba()));
+                }
+            }
+        }
+
+        match self {
+            Shape::CIRCLE(_) => {Ok(Shape::CIRCLE(image))}
+            Shape::SEMICIRCLE(_) => {Ok(Shape::SEMICIRCLE(image))}
+            Shape::QUARTERCIRCLE(_) => {Ok(Shape::QUARTERCIRCLE(image))}
+            Shape::TRIANGLE(_) => {Ok(Shape::TRIANGLE(image))}
+        }
+    }
+
+    pub fn get_inner_image(&self) -> &RgbaImage {
+        match self {
+            Shape::CIRCLE(c) => {c}
+            Shape::SEMICIRCLE(c) => {c}
+            Shape::QUARTERCIRCLE(c) => {c}
+            Shape::TRIANGLE(c) => {c}
+        }
+    }
+}
+
+// white, black, red, blue, green, purple, brown, and orange
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+pub enum ShapeColor {
+    WHITE,
+    RED,
+    BLACK,
+    BLUE,
+    GREEN,
+    PURPLE,
+    BROWN,
+    ORANGE,
+}
+
+impl ShapeColor {
+    // TODO: test colors
+    pub fn get_rgba(&self) -> [u8; 4] {
+        match self {
+            ShapeColor::WHITE => [255, 255, 255, 100],
+            ShapeColor::RED => [255, 0, 0, 100],
+            ShapeColor::BLACK => [0, 0, 0, 100],
+            ShapeColor::BLUE => [0, 0, 255, 100],
+            ShapeColor::GREEN => [0, 255, 0, 100],
+            ShapeColor::PURPLE => [255, 0, 255, 100],
+            ShapeColor::BROWN => [165, 42, 42, 100],
+            ShapeColor::ORANGE => [255, 165, 0, 100],
+        }
+    }
+}
+
 #[test]
+#[ignore]
 pub fn load_shapes() {
     let shapes = ShapeManager::new(Path::new("shapes")).unwrap();
 
@@ -101,7 +183,8 @@ pub fn load_shapes() {
                     for j in 0..c.height() {
                         let p = c.get_pixel(i, j);
 
-                        if p.0[0] > 100 || p.0[1] > 100 || p.0[2] > 100 { // test auto-generating varying shape colors
+                        // if alpha is greater than 10, set to whatever color
+                        if p.0[3] > 10 { // test auto-generating varying shape colors
                             c.put_pixel(i, j, image::Rgba([255, 255, 255, 255]));
                         }
                     }
@@ -115,5 +198,29 @@ pub fn load_shapes() {
         }
     } else {
         println!("No shapes found!");
+    }
+}
+
+#[test]
+#[ignore]
+fn generate_colors() {
+    let shapes = ShapeManager::new(Path::new("shapes")).unwrap();
+    let colors = vec![
+        ShapeColor::WHITE,
+        ShapeColor::RED,
+        ShapeColor::BLACK,
+        ShapeColor::BLUE,
+        ShapeColor::GREEN,
+        ShapeColor::PURPLE,
+        ShapeColor::BROWN,
+        ShapeColor::ORANGE,
+    ];
+
+    let shapes = shapes.generate_color_variants(colors).unwrap();
+
+    if shapes.color_variants.len() > 0 {
+        let shape = shapes.color_variants.choose(&mut thread_rng()).unwrap();
+
+        shape.get_inner_image().save("output.png").unwrap();
     }
 }
