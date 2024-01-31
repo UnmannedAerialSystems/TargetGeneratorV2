@@ -22,4 +22,6 @@ impl TargetGenerator {
 
         Ok(())
     }
+
+    // text colors: orange, grey, yellow, black, white, purple
 }

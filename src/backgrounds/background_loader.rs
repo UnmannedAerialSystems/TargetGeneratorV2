@@ -15,7 +15,8 @@ pub struct BackgroundLoader {
 }
 
 impl BackgroundLoader {
-    pub fn new(dir: &Path) -> Result<BackgroundLoader> {
+    pub fn new<Q: AsRef<Path>>(path: Q) -> Result<BackgroundLoader> {
+        let dir = path.as_ref().to_path_buf();
         let v = Mutex::new(vec![]); // mutex for multi-thread access
 
         let start = Instant::now();
@@ -93,7 +94,7 @@ impl BackgroundLoader {
 fn test_bg_loader() {
     simple_logger::SimpleLogger::new().init().unwrap();
 
-    let bg_loader = BackgroundLoader::new(Path::new("backgrounds")).unwrap();
+    let bg_loader = BackgroundLoader::new("backgrounds").unwrap();
     /*let bg = bg_loader.random_augment(Some((-20, 20)), true).unwrap();
     bg.save("output.png").unwrap();*/
 

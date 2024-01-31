@@ -9,6 +9,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use rayon::iter::{IntoParallelRefIterator, ParallelBridge};
 use rayon::iter::ParallelIterator;
+use simple_logger::SimpleLogger;
 
 pub struct ShapeManager {
     shapes: Vec<Shape>,
@@ -16,7 +17,8 @@ pub struct ShapeManager {
 }
 
 impl ShapeManager {
-    pub fn new(path: &Path) -> Result<Self> {
+    pub fn new<Q: AsRef<Path>>(path: Q) -> Result<Self> {
+        let path = path.as_ref().to_path_buf();
         let v = Mutex::new(vec![]);
         let start = Instant::now();
 
@@ -65,6 +67,14 @@ impl ShapeManager {
                 warn!("Could not parse Shape file name. Skipping: \"{:?}\"", entry.file_name());
             }
         });
+
+        if let Ok(v) = v.lock() {
+            if v.len() == 0 {
+                warn!("No shapes were parsed! Are there any shape templates in the input?");
+            }
+        } else {
+            return Err(anyhow!("Could not unlock parsed shape list."));
+        }
 
         let x = Ok(Self {
             shapes: v.lock().unwrap().to_vec(),
@@ -136,6 +146,13 @@ impl Shape {
             Shape::TRIANGLE(c) => {c}
         }
     }
+
+    pub fn get_center(&self) -> (u32, u32) {
+        let x = self.get_inner_image().width() / 2;
+        let y = self.get_inner_image().height() / 2;
+
+        return (x, y);
+    }
 }
 
 // white, black, red, blue, green, purple, brown, and orange
@@ -170,7 +187,7 @@ impl ShapeColor {
 #[test]
 #[ignore]
 pub fn load_shapes() {
-    let shapes = ShapeManager::new(Path::new("shapes")).unwrap();
+    let shapes = ShapeManager::new("shapes").unwrap();
 
     if let Some(shape) = shapes.random() {
         match shape {
@@ -204,7 +221,9 @@ pub fn load_shapes() {
 #[test]
 #[ignore]
 fn generate_colors() {
-    let shapes = ShapeManager::new(Path::new("shapes")).unwrap();
+    SimpleLogger::new().init().unwrap();
+
+    let shapes = ShapeManager::new("shapes").unwrap();
     let colors = vec![
         ShapeColor::WHITE,
         ShapeColor::RED,
