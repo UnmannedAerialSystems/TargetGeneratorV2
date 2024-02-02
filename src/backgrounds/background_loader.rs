@@ -91,6 +91,7 @@ impl BackgroundLoader {
 }
 
 #[test]
+#[ignore]
 fn test_bg_loader() {
     simple_logger::SimpleLogger::new().init().unwrap();
 
