@@ -2,10 +2,7 @@ mod backgrounds;
 mod shapes;
 mod generator;
 
-use std::thread;
-use std::time::Duration;
 use image::{ImageBuffer, Rgb, RgbImage};
-use anyhow::Result;
 use simple_logger::SimpleLogger;
 use log::debug;
 

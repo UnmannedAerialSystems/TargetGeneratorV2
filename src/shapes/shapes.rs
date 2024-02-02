@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
 use anyhow::{anyhow, Result};
-use image::RgbaImage;
+use image::{Rgba, RgbaImage};
 use log::{debug, trace, warn};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -241,5 +241,38 @@ fn generate_colors() {
         let shape = shapes.color_variants.choose(&mut thread_rng()).unwrap();
 
         shape.get_inner_image().save("output.png").unwrap();
+    }
+}
+
+#[test]
+#[ignore]
+fn mark_centerpoints() {
+    SimpleLogger::new().init().unwrap();
+
+    let shapes = ShapeManager::new("shapes").unwrap();
+    let colors = vec![
+        ShapeColor::WHITE,
+        ShapeColor::RED,
+        ShapeColor::BLACK,
+        ShapeColor::BLUE,
+        ShapeColor::GREEN,
+        ShapeColor::PURPLE,
+        ShapeColor::BROWN,
+        ShapeColor::ORANGE,
+    ];
+
+    let shapes = shapes.generate_color_variants(colors).unwrap();
+
+    if let Some(shape) = shapes.random() {
+        let center = shape.get_center();
+        let mut img = shape.get_inner_image().clone();
+
+        for i in center.0-1..center.0+1 {
+            for j in center.1-1..center.0+1 {
+                img.put_pixel(i, j, Rgba([255, 13, 17, 100]))
+            }
+        }
+
+        img.save("output.png");
     }
 }
