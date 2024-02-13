@@ -13,6 +13,8 @@ clap = {version = "4.4.18", features = ["default"]}
 simple_logger = "4.3.3"
 log = "0.4.20"
 rand = {version = "0.8.5", features = ["default"]}
+imageproc = "0.23.0"
+rusttype = "0.9.3"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]

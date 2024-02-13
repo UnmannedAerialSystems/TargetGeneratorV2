@@ -148,10 +148,19 @@ impl Shape {
     }
 
     pub fn get_center(&self) -> (u32, u32) {
-        let x = self.get_inner_image().width() / 2;
-        let y = self.get_inner_image().height() / 2;
-
-        return (x, y);
+        match self {
+            // Quarter circle center is better off a little farther to the right of true center
+            Shape::QUARTERCIRCLE(c) => {
+                let x = (c.width() as f32 * 0.55) as u32;
+                let y = (c.height() as f32 * 0.55) as u32;
+                (x, y)
+            },
+            _ => {
+                let x = self.get_inner_image().width() / 2;
+                let y = self.get_inner_image().height() / 2;
+                (x, y)
+            },
+        }
     }
 }
 
@@ -202,7 +211,7 @@ pub fn load_shapes() {
 
                         // if alpha is greater than 10, set to whatever color
                         if p.0[3] > 10 { // test auto-generating varying shape colors
-                            c.put_pixel(i, j, image::Rgba([255, 255, 255, 255]));
+                            c.put_pixel(i, j, Rgba([255, 255, 255, 255]));
                         }
                     }
                 }
@@ -273,6 +282,6 @@ fn mark_centerpoints() {
             }
         }
 
-        img.save("output.png");
+        img.save("output.png").unwrap();
     }
 }
