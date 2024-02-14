@@ -115,7 +115,7 @@ pub enum Shape {
 
 impl Shape {
     pub fn get_color(&self, color: &ShapeColor) -> Result<Shape> {
-        let image = self.get_inner_image();
+        let image = self.view_inner_image();
 
         let mut image = image.clone();
 
@@ -138,7 +138,16 @@ impl Shape {
         }
     }
 
-    pub fn get_inner_image(&self) -> &RgbaImage {
+    pub fn get_inner_image(&mut self) -> &mut RgbaImage {
+        match self {
+            Shape::CIRCLE(c) => {c}
+            Shape::SEMICIRCLE(c) => {c}
+            Shape::QUARTERCIRCLE(c) => {c}
+            Shape::TRIANGLE(c) => {c}
+        }
+    }
+
+    pub fn view_inner_image(&self) -> &RgbaImage {
         match self {
             Shape::CIRCLE(c) => {c}
             Shape::SEMICIRCLE(c) => {c}
@@ -156,8 +165,8 @@ impl Shape {
                 (x, y)
             },
             _ => {
-                let x = self.get_inner_image().width() / 2;
-                let y = self.get_inner_image().height() / 2;
+                let x = self.view_inner_image().width() / 2;
+                let y = self.view_inner_image().height() / 2;
                 (x, y)
             },
         }
@@ -249,7 +258,7 @@ fn generate_colors() {
     if shapes.color_variants.len() > 0 {
         let shape = shapes.color_variants.choose(&mut thread_rng()).unwrap();
 
-        shape.get_inner_image().save("output.png").unwrap();
+        shape.view_inner_image().save("output.png").unwrap();
     }
 }
 
@@ -274,7 +283,7 @@ fn mark_centerpoints() {
 
     if let Some(shape) = shapes.random() {
         let center = shape.get_center();
-        let mut img = shape.get_inner_image().clone();
+        let mut img = shape.view_inner_image().clone();
 
         for i in center.0-1..center.0+1 {
             for j in center.1-1..center.0+1 {

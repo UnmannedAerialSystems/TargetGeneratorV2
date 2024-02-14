@@ -1,1 +1,2 @@
-mod target_generator;
+pub mod target_generator;
+pub mod text;

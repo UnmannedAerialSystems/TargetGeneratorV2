@@ -1,30 +1,54 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use anyhow::Result;
-use image::{Rgb, Rgba};
+use image::{ImageBuffer, Rgba, RgbaImage};
+use imageproc::drawing::draw_text_mut;
+use rusttype::Font;
 use simple_logger::SimpleLogger;
 use crate::backgrounds::background_loader::BackgroundLoader;
+use crate::generator::text::{random_color, random_letter};
 
-use crate::shapes::shapes::{ShapeColor, ShapeManager};
+use crate::shapes::shapes::{Shape, ShapeColor, ShapeManager};
 
-pub struct TargetGenerator {
+pub struct TargetGenerator<'a> {
     output: PathBuf,
     backgrounds_path: PathBuf,
     shapes_path: PathBuf,
     textfont_file: PathBuf,
     pub shape_manager: ShapeManager,
     // background_loader: BackgroundLoader,
+    font: Font<'a>,
 }
 
-impl TargetGenerator {
+impl TargetGenerator<'_> {
     pub fn new<Q: AsRef<Path>>(output: Q, background_path: Q, shapes_path: Q) -> Result<Self> {
+        let font = Vec::from(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8]);
+        let font = Font::try_from_vec(font).unwrap();
+
         Ok(Self {
             output: output.as_ref().to_path_buf(),
             backgrounds_path: background_path.as_ref().to_path_buf(),
             shapes_path: shapes_path.as_ref().to_path_buf(),
             textfont_file: PathBuf::from("fonts/DejaVuSans.ttf"), // we can change this later
             shape_manager: ShapeManager::new(shapes_path)?,
+            font,
         })
+    }
+
+    pub fn draw_random_letter(&self, shape: &mut Shape) -> Result<()> {
+        let letter = random_letter();
+        let center = shape.get_center();
+        let image = shape.get_inner_image();
+
+        let height = 80.0;
+        let scale = rusttype::Scale {
+            x: height * 1.5,
+            y: height,
+        };
+        let color = random_color().get_rgb();
+
+        draw_text_mut(image, color, center.0 as i32, center.1 as i32, scale, &self.font, &letter.to_string());
+        Ok(())
     }
 
     pub fn random_generate(&self, amount: usize) -> Result<()> {
@@ -40,6 +64,19 @@ impl TargetGenerator {
     }
 
     // text colors: orange, grey, yellow, black, white, purple
+}
+
+#[test]
+#[ignore]
+pub fn test_generate_image_nobg() {
+    SimpleLogger::new().init().unwrap();
+
+    let tg = TargetGenerator::new("output", "backgrounds", "shapes").unwrap();
+
+    let mut shape = tg.shape_manager.random().unwrap().clone();
+
+    tg.draw_random_letter(&mut shape).unwrap();
+    shape.get_inner_image().save("output.png").unwrap();
 }
 
 #[test]
