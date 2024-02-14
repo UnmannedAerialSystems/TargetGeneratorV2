@@ -35,15 +35,19 @@ impl TargetGenerator<'_> {
         })
     }
 
-    pub fn draw_random_letter(&self, shape: &mut Shape) -> Result<()> {
+    pub fn draw_random_letter(&self, shape: &mut Shape, text_size: f32) -> Result<()> {
         let letter = random_letter();
         let center = shape.get_center();
+        let center = (
+            (center.0 as f32 * 0.8) as u32,
+            (center.1 as f32 * 0.8) as u32,
+        );
+
         let image = shape.get_inner_image();
 
-        let height = 80.0;
         let scale = rusttype::Scale {
-            x: height * 1.5,
-            y: height,
+            x: base_height * 1.5,
+            y: base_height,
         };
         let color = random_color().get_rgb();
 
@@ -75,7 +79,7 @@ pub fn test_generate_image_nobg() {
 
     let mut shape = tg.shape_manager.random().unwrap().clone();
 
-    tg.draw_random_letter(&mut shape).unwrap();
+    tg.draw_random_letter(&mut shape, 0.5).unwrap();
     shape.get_inner_image().save("output.png").unwrap();
 }
 
