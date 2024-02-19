@@ -3,6 +3,8 @@ use std::time::Instant;
 use anyhow::Result;
 use image::{ImageBuffer, Rgba, RgbaImage};
 use imageproc::drawing::draw_text_mut;
+use log::{debug, trace};
+use rand::{Rng, thread_rng};
 use rusttype::Font;
 use simple_logger::SimpleLogger;
 use crate::backgrounds::background_loader::BackgroundLoader;
@@ -16,7 +18,7 @@ pub struct TargetGenerator<'a> {
     shapes_path: PathBuf,
     textfont_file: PathBuf,
     pub shape_manager: ShapeManager,
-    // background_loader: BackgroundLoader,
+    background_loader: BackgroundLoader,
     font: Font<'a>,
 }
 
@@ -31,39 +33,65 @@ impl TargetGenerator<'_> {
             shapes_path: shapes_path.as_ref().to_path_buf(),
             textfont_file: PathBuf::from("fonts/DejaVuSans.ttf"), // we can change this later
             shape_manager: ShapeManager::new(shapes_path)?,
+            background_loader: BackgroundLoader::new(background_path)?,
             font,
         })
     }
 
-    pub fn draw_random_letter(&self, shape: &mut Shape, text_size: f32) -> Result<()> {
+    pub fn generate_target(&self, frequency: f32, resize_factor: f32) -> Result<()> {
+        let start = Instant::now(); // start timer
+        debug!("Beginning to generate a target...");
+
+        let mut background = self.background_loader.random().unwrap().clone();
+        let (w, h) = (background.width(), background.height());
+
+        let amount = (frequency * 20.0) as i32;
+
+        for i in 0..amount {
+            let mut shape = self.shape_manager.random_view().unwrap().clone();
+            self.draw_random_letter(&mut shape, 1.5, true)?;
+
+            // resizing occurs here so images are not too large for the background
+            // resizing might be slow, see https://docs.rs/image/latest/image/imageops/enum.FilterType.html
+            let nwidth = (shape.view_inner_image().width() as f32 * resize_factor) as u32;
+            let nheight = (shape.view_inner_image().height() as f32 * resize_factor) as u32;
+
+            image::imageops::resize(shape.get_inner_image(), nwidth, nheight, image::imageops::FilterType::Triangle);
+            let image = shape.view_inner_image();
+
+
+            let x = thread_rng().gen_range(0..w) as i64;
+            let y = thread_rng().gen_range(0..h) as i64;
+
+            image::imageops::overlay(&mut background, image, x, y);
+
+            trace!("Generation {} completed at {}ms", i, start.elapsed().as_millis());
+        }
+
+        debug!("Generation completed, generated {} in average {}ms", amount, start.elapsed().as_millis() / amount as u128);
+
+        background.save("output.png")?;
+
+        Ok(())
+    }
+
+    pub fn draw_random_letter(&self, shape: &mut Shape, text_size: f32, do_random_rotate: bool) -> Result<()> {
         let letter = random_letter();
         let center = shape.get_center();
         let center = (
-            (center.0 as f32 * 0.8) as u32,
-            (center.1 as f32 * 0.8) as u32,
+            (center.0 as f32 * 0.95 * (1.0 - (1.0 / text_size))) as u32, // TODO: more tuning here, maybe change text_size beforehand based on shape
+            (center.1 as f32 * 1.1 * (1.0 - (1.0 / text_size))) as u32,
         );
 
         let image = shape.get_inner_image();
 
         let scale = rusttype::Scale {
-            x: base_height * 1.5,
-            y: base_height,
+            x: (image.height() as f32 / 2.0) * 1.5 * text_size,
+            y: (image.height() as f32 / 2.0) * text_size,
         };
         let color = random_color().get_rgb();
 
         draw_text_mut(image, color, center.0 as i32, center.1 as i32, scale, &self.font, &letter.to_string());
-        Ok(())
-    }
-
-    pub fn random_generate(&self, amount: usize) -> Result<()> {
-        let start = Instant::now(); // start timer
-
-        Ok(())
-    }
-
-    pub fn generate(&self, amount: usize, colors: Vec<ShapeColor>) -> Result<()> {
-        let start = Instant::now(); // start timer
-
         Ok(())
     }
 
@@ -77,9 +105,9 @@ pub fn test_generate_image_nobg() {
 
     let tg = TargetGenerator::new("output", "backgrounds", "shapes").unwrap();
 
-    let mut shape = tg.shape_manager.random().unwrap().clone();
+    let mut shape = tg.shape_manager.random_view().unwrap().clone();
 
-    tg.draw_random_letter(&mut shape, 0.5).unwrap();
+    tg.draw_random_letter(&mut shape, 1.5, true).unwrap();
     shape.get_inner_image().save("output.png").unwrap();
 }
 
@@ -98,7 +126,7 @@ pub fn test_writing_text() {
     let font = Vec::from(include_bytes!("../../fonts/DejaVuSans.ttf") as &[u8]);
     let font = Font::try_from_vec(font).unwrap();
 
-    let mut shape = tg.shape_manager.random().unwrap().clone();
+    let mut shape = tg.shape_manager.random_view().unwrap().clone();
     let mut image = shape.get_inner_image().clone();
 
     let height = 12.4;
@@ -115,4 +143,13 @@ pub fn test_writing_text() {
     println!("Text size: {}x{}", w, h);
 
     let _ = image.save("output.png").unwrap();
+}
+
+#[test]
+#[ignore]
+pub fn test_generate_target() {
+    SimpleLogger::new().init().unwrap();
+
+    let tg = TargetGenerator::new("output", "backgrounds", "shapes").unwrap();
+    tg.generate_target( 0.5, 0.1).unwrap();
 }

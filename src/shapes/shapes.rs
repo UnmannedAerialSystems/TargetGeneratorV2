@@ -99,7 +99,7 @@ impl ShapeManager {
         Ok(self)
     }
 
-    pub fn random(&self) -> Option<&Shape> {
+    pub fn random_view(&self) -> Option<&Shape> {
         self.shapes.choose(&mut thread_rng())
     }
 }
@@ -207,7 +207,7 @@ impl ShapeColor {
 pub fn load_shapes() {
     let shapes = ShapeManager::new("shapes").unwrap();
 
-    if let Some(shape) = shapes.random() {
+    if let Some(shape) = shapes.random_view() {
         match shape {
             Shape::CIRCLE(c) => {
                 let mut c = c.clone();
@@ -281,7 +281,7 @@ fn mark_centerpoints() {
 
     let shapes = shapes.generate_color_variants(colors).unwrap();
 
-    if let Some(shape) = shapes.random() {
+    if let Some(shape) = shapes.random_view() {
         let center = shape.get_center();
         let mut img = shape.view_inner_image().clone();
 
