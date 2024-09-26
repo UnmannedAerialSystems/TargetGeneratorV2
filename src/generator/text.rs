@@ -20,7 +20,7 @@ pub fn random_color() -> TextColor {
         TextColor::WHITE,
         TextColor::PURPLE,
     ];
-    *colors.choose(&mut rng).unwrap()
+    colors.into_iter().choose(&mut rng).unwrap()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -125,7 +125,7 @@ impl Shape {
 
                 // if alpha is greater than 10, set to whatever color
                 if p.0[3] > 10 { // test auto-generating varying shape colors
-                    image.put_pixel(i, j, image::Rgba(color.get_rgba()));
+                    image.put_pixel(i, j, Rgba(color.get_rgba()));
                 }
             }
         }

@@ -36,6 +36,8 @@ impl BackgroundLoader {
                 return;
             }
 
+            //TODO: simplify this mess
+            
             // deduce file format from name
             if let Ok(img) = image::io::Reader::open(path.clone()) {
                 if let Ok(format) = img.with_guessed_format() {
@@ -65,6 +67,7 @@ impl BackgroundLoader {
         self.backgrounds.choose(&mut thread_rng())
     }
 
+    /// TODO: Rework so that images are only rotated post target application
     pub fn random_augment(&self, brightness: Option<(i32, i32)>, do_rotate: bool) -> Option<RgbaImage> {
         let mut img = self.random()?.clone();
 
@@ -86,7 +89,7 @@ impl BackgroundLoader {
             img = image::imageops::brighten(&img, b);
         }
 
-        return Some(img);
+        Some(img)
     }
 }
 

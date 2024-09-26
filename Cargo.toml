@@ -7,11 +7,12 @@ edition = "2021"
 
 [dependencies]
 image = "0.24.8"
-anyhow = "1.0.79"
-rayon = {version = "1.8.1", features = []}
-clap = {version = "4.4.18", features = ["default"]}
-simple_logger = "4.3.3"
-log = "0.4.20"
+anyhow = "1.0.86"
+thiserror = "1.0.63"
+rayon = {version = "1.10.0", features = []}
+clap = {version = "4.5.16", features = ["default"]}
+simple_logger = "5.0.0"
+log = "0.4.22"
 rand = {version = "0.8.5", features = ["default"]}
 imageproc = "0.23.0"
 rusttype = "0.9.3"
