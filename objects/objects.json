@@ -1,0 +1,16 @@
+{
+  "map": {
+    "bicycle_1": {
+      "ground_width": 1.73
+    },
+    "bicycle_2": {
+      "ground_width": 1.73
+    },
+    "tire_1": {
+      "ground_width": 1.0
+    },
+    "tire_2": {
+      "ground_width": 1.0
+    }
+  }
+}

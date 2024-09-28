@@ -6,16 +6,17 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-image = "0.24.8"
-anyhow = "1.0.86"
-thiserror = "1.0.63"
+image = "0.25.2"
+anyhow = "1.0.89"
+thiserror = "1.0.64"
 rayon = {version = "1.10.0", features = []}
-clap = {version = "4.5.16", features = ["default"]}
+clap = {version = "4.5.18", features = ["default"]}
 simple_logger = "5.0.0"
 log = "0.4.22"
 rand = {version = "0.8.5", features = ["default"]}
-imageproc = "0.23.0"
-rusttype = "0.9.3"
+imageproc = "0.25.0"
+serde = {version = "1.0.210", features = ["derive"]}
+serde_json = "1.0.68"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]

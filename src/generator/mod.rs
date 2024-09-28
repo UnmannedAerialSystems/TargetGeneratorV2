@@ -6,7 +6,6 @@ use image::{ImageBuffer, Rgba, RgbaImage};
 use imageproc::drawing::draw_text_mut;
 use log::{debug, trace};
 use rand::{Rng, thread_rng};
-use rusttype::Font;
 use simple_logger::SimpleLogger;
 use crate::backgrounds::BackgroundLoader;
 use crate::objects::ObjectManager;
@@ -56,6 +55,11 @@ impl TargetGenerator {
 	}
 }
 
+fn calculate_fov(image_width: u32, image_height: u32, focal_length: f32) -> f32 {
+	2.0 * (0.5 * image_width as f32 / focal_length).atan()
+}
+
+/// Calculate the width of the ground in meters based on camera position and field of view
 fn calculate_ground_width(altitude: f32, fov: f32) -> f32 {
 	2.0 * altitude * (fov.to_radians() / 2.0).tan()
 }
