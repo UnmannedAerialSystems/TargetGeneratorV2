@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 pub struct ObjectManager {
 	path_buf: PathBuf,
 	objects: Vec<Object>,
-	
 }
 
 impl ObjectManager {
@@ -21,9 +20,11 @@ impl ObjectManager {
 		}
 	}
 	
+	/// Load training objects into the buffer
 	pub fn load_objects(&mut self) -> Result<()> {
 		let mut entries = std::fs::read_dir(&self.path_buf)?;
 		
+		// retrieve objects.json file that holds all info about our training objects
 		let out = entries.find(|entry| {
 			let entry = entry.as_ref().unwrap().path();
 			
@@ -66,6 +67,9 @@ impl ObjectManager {
 		Ok(())
 	}
 	
+	/// Generate a set of training objects a random that could be used to generate a target
+	/// [amount] is the maximum number of objects to return
+	/// Returns a set of objects that will contain no duplicates
 	pub fn generate_set(&self, amount: u32) -> Result<HashSet<&Object>> {
 		let mut rng = rand::thread_rng();
 		let mut set = HashSet::new();
@@ -74,21 +78,26 @@ impl ObjectManager {
 			return Err(anyhow!("Amount of objects requested is greater than the amount of objects available"));
 		}
 		
-		while set.len() < amount as usize {
-			let object = self.objects.choose(&mut rng).unwrap();
+		self.objects.choose_multiple(&mut rng, amount as usize).for_each(|object| {
 			set.insert(object);
-		}
+		});
 		
 		Ok(set)
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Object {
 	object_class: ObjectClass,
 	id: u16,
-	dynamic_image: DynamicImage,
-	object_width_meters: f32,
+	pub(crate) dynamic_image: DynamicImage,
+	pub(crate) object_width_meters: f32,
+}
+
+impl Object {
+	pub fn to_rgba_image(&self) -> RgbaImage {
+		self.dynamic_image.to_rgba8()
+	}
 }
 
 impl PartialEq for Object {
@@ -122,11 +131,13 @@ impl ObjectClass {
 	}
 }
 
+/// Represents the object details file that holds all the information about the training objects
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ObjectDetailsFile {
 	map: HashMap<String, ObjectDetails>
 }
 
+/// All details about a training object
 #[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct ObjectDetails {
 	ground_width: f32

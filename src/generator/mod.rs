@@ -2,7 +2,8 @@ use std::ops::RangeTo;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use anyhow::Result;
-use image::{ImageBuffer, Rgba, RgbaImage};
+use image::{GenericImage, ImageBuffer, Rgba, RgbaImage};
+use image::imageops::FilterType;
 use imageproc::drawing::draw_text_mut;
 use log::{debug, trace};
 use rand::{Rng, thread_rng};
@@ -13,33 +14,59 @@ use crate::objects::ObjectManager;
 pub struct TargetGenerator {
 	output: PathBuf,
 	backgrounds_path: PathBuf,
-	pub shape_manager: ObjectManager,
+	pub object_manager: ObjectManager,
 	background_loader: BackgroundLoader,
 }
 
 impl TargetGenerator {
 	pub fn new<Q: AsRef<Path>>(output: Q, background_path: Q, objects_path: Q) -> Result<Self> {
 
+		let mut object_manager = ObjectManager::new(objects_path);
+		object_manager.load_objects()?;
+		
 		Ok(Self {
 			output: output.as_ref().to_path_buf(),
 			backgrounds_path: background_path.as_ref().to_path_buf(),
-			shape_manager: ObjectManager::new(objects_path),
+			object_manager,
 			background_loader: BackgroundLoader::new(background_path)?,
 		})
 	}
 
-	pub fn generate_target(&self, altitude: f32) -> Result<()> {
-
-		debug!("Beginning to generate a target...");
+	pub fn generate_target(&self, altitude: f32, fov: f32, iteration: u32) -> Result<()> {
+		trace!("Beginning to generate a target...");
 
 		let mut background = self.background_loader.random().unwrap().clone();
 		let (w, h) = (background.width(), background.height());
+		let set = self.object_manager.generate_set(1)?;
+		
+		let ground_width = calculate_ground_width(altitude, fov);
+		let meters_per_pixel = meters_per_pixel(w, ground_width);
+		
+		for obj in set {
+			let clone = &obj.dynamic_image.clone();
+			let (obj_w, obj_h) = (obj.dynamic_image.width(), obj.dynamic_image.height());
+			let (x, y) = (thread_rng().gen_range(0..w - obj_w), thread_rng().gen_range(0..h - obj_h));
+			trace!("Placing object at {}, {}", x, y);
+			/*let expected_size = expected_object_size_pixels(obj.object_width_meters, meters_per_pixel);
+			
+			let aspect_ratio = obj_w as f32 / obj_h as f32;
+			
+			debug!("Resizing object to {}x{}", expected_size as u32, (expected_size / aspect_ratio) as u32); //TODO: too big
+			
+			background.copy_from(&clone.resize(expected_size as u32, (expected_size / aspect_ratio) as u32, FilterType::Gaussian), x, y)?;*/
+			
+			let adjusted = resize_ratio(obj.object_width_meters, METER_CONST);
+			debug!("Width: {}, Height: {}", obj_w, obj_h);
+			let aspect_ratio = obj_w as f32 / obj_h as f32;
+			let (obj_w, obj_h) = (adjusted as u32, (adjusted / aspect_ratio) as u32);
 
+			debug!("Resizing object to {}x{}", obj_w, obj_h); //TODO: too big
 
-
-
-
-		background.save("output.png")?;
+			background.copy_from(&clone.resize(obj_w, obj_h, FilterType::Gaussian), x, y)?;
+		}
+		
+		background.save(format!("output_{iteration}.png"))?;
+		debug!("Saved generated target to output_{iteration}.png");
 
 		Ok(())
 	}
@@ -55,6 +82,26 @@ impl TargetGenerator {
 	}
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct BoundingBox {
+	pub x: u32,
+	pub y: u32,
+	pub width: u32,
+	pub height: u32,
+}
+
+const METER_CONST: f32 = 35.0;
+
+fn resize_ratio(object_real_size: f32, pixels_per_meter: f32) -> f32 {
+	debug!("Real size: {}, Pixels per meter: {}", object_real_size, pixels_per_meter);
+	object_real_size * pixels_per_meter
+}
+
+fn degrees_to_radians(degrees: f32) -> f32 {
+	degrees * std::f32::consts::PI / 180.0
+}
+
+// Calculate the fov in radians based on the image width, height and focal length
 fn calculate_fov(image_width: u32, image_height: u32, focal_length: f32) -> f32 {
 	2.0 * (0.5 * image_width as f32 / focal_length).atan()
 }
@@ -79,6 +126,6 @@ fn expected_object_size_pixels(real_size: f32, meters_per_pixel: f32) -> f32 {
 pub fn test_generate_target() {
 	SimpleLogger::new().init().unwrap();
 
-	let tg = TargetGenerator::new("output", "backgrounds", "shapes").unwrap();
-	tg.generate_target( 22.8).unwrap();
+	let tg = TargetGenerator::new("output", "backgrounds", "objects").unwrap();
+	tg.generate_target( 22.8, degrees_to_radians(35.0), 1).unwrap();
 }
