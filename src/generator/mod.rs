@@ -11,6 +11,8 @@ use simple_logger::SimpleLogger;
 use crate::backgrounds::BackgroundLoader;
 use crate::objects::ObjectManager;
 
+pub mod coco;
+
 pub struct TargetGenerator {
 	output: PathBuf,
 	backgrounds_path: PathBuf,
@@ -39,21 +41,11 @@ impl TargetGenerator {
 		let (w, h) = (background.width(), background.height());
 		let set = self.object_manager.generate_set(1)?;
 		
-		let ground_width = calculate_ground_width(altitude, fov);
-		let meters_per_pixel = meters_per_pixel(w, ground_width);
-		
 		for obj in set {
 			let clone = &obj.dynamic_image.clone();
 			let (obj_w, obj_h) = (obj.dynamic_image.width(), obj.dynamic_image.height());
 			let (x, y) = (thread_rng().gen_range(0..w - obj_w), thread_rng().gen_range(0..h - obj_h));
 			trace!("Placing object at {}, {}", x, y);
-			/*let expected_size = expected_object_size_pixels(obj.object_width_meters, meters_per_pixel);
-			
-			let aspect_ratio = obj_w as f32 / obj_h as f32;
-			
-			debug!("Resizing object to {}x{}", expected_size as u32, (expected_size / aspect_ratio) as u32); //TODO: too big
-			
-			background.copy_from(&clone.resize(expected_size as u32, (expected_size / aspect_ratio) as u32, FilterType::Gaussian), x, y)?;*/
 			
 			let adjusted = resize_ratio(obj.object_width_meters, METER_CONST);
 			debug!("Width: {}, Height: {}", obj_w, obj_h);
@@ -61,8 +53,9 @@ impl TargetGenerator {
 			let (obj_w, obj_h) = (adjusted as u32, (adjusted / aspect_ratio) as u32);
 
 			debug!("Resizing object to {}x{}", obj_w, obj_h); //TODO: too big
-
-			background.copy_from(&clone.resize(obj_w, obj_h, FilterType::Gaussian), x, y)?;
+			
+			// overlay respects transparent pixels unlike copy_from
+			image::imageops::overlay(&mut background, &clone.resize(obj_w, obj_h, FilterType::Gaussian), x as i64, y as i64);
 		}
 		
 		background.save(format!("output_{iteration}.png"))?;
@@ -90,6 +83,7 @@ pub struct BoundingBox {
 	pub height: u32,
 }
 
+// TODO: make this adjustable
 const METER_CONST: f32 = 35.0;
 
 fn resize_ratio(object_real_size: f32, pixels_per_meter: f32) -> f32 {
