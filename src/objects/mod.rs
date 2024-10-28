@@ -5,6 +5,8 @@ use anyhow::{anyhow, Result};
 use log::warn;
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
+use strum::{EnumIter, IntoEnumIterator};
+use crate::generator::coco::{BoundingBox, CocoCategory, CocoCategoryInfo};
 
 #[derive(Debug)]
 pub struct ObjectManager {
@@ -115,7 +117,7 @@ impl std::hash::Hash for Object {
 	}
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
 pub enum ObjectClass {
 	BICYCLE,
 	TIRE
@@ -129,6 +131,27 @@ impl ObjectClass {
 			_ => panic!("Unknown object class: {}", prefix),
 		}
 	}
+	
+	pub fn prefix(&self) -> &str {
+		match self {
+			ObjectClass::BICYCLE => "bicycle",
+			ObjectClass::TIRE => "tire",
+		}
+	}
+}
+
+impl CocoCategoryInfo for ObjectClass {
+	fn new(&self) -> Vec<CocoCategory> {
+		let mut v = vec![];
+		let mut id = 0;
+		
+		for object_class in ObjectClass::iter() {
+			v.push(CocoCategory::new(id, object_class.prefix().to_string()));
+			id += 1;
+		}
+		
+		v
+	}
 }
 
 /// Represents the object details file that holds all the information about the training objects
@@ -141,6 +164,15 @@ pub struct ObjectDetailsFile {
 #[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct ObjectDetails {
 	ground_width: f32
+}
+
+#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
+pub struct PlacedObject {
+	object_class: ObjectClass,
+	id: u16,
+	x: u32,
+	y: u32,
+	bounding_box: BoundingBox
 }
 
 #[ignore]
