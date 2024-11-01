@@ -8,9 +8,11 @@ use imageproc::drawing::draw_text_mut;
 use log::{debug, trace};
 use rand::{Rng, thread_rng};
 use simple_logger::SimpleLogger;
+use strum::Display;
+use thiserror::Error;
 use crate::backgrounds::BackgroundLoader;
-use crate::generator::coco::CocoGenerator;
-use crate::objects::ObjectManager;
+use crate::generator::coco::{CocoCategoryInfo, CocoGenerator};
+use crate::objects::{ObjectClass, ObjectManager};
 
 pub mod coco;
 
@@ -33,16 +35,20 @@ impl TargetGenerator {
 			backgrounds_path: background_path.as_ref().to_path_buf(),
 			object_manager,
 			background_loader: BackgroundLoader::new(background_path)?,
-			coco_generator: CocoGenerator::new(annotations_path)
+			coco_generator: CocoGenerator::new(annotations_path, ObjectClass::categories())
 		})
 	}
 
-	pub fn generate_target(&self, altitude: f32, fov: f32, iteration: u32, pixels_per_meter: f32) -> Result<RgbaImage> {
+	pub fn generate_target(&mut self, pixels_per_meter: f32) -> Result<RgbaImage> {
 		trace!("Beginning to generate a target...");
 
-		let mut background = self.background_loader.random().unwrap().clone();
-		let (w, h) = (background.width(), background.height());
+		let background = self.background_loader.random().unwrap();
+		let mut image = background.image.clone();
+		let (w, h) = (image.width(), image.height());
 		let set = self.object_manager.generate_set(1)?;
+		
+		// add background image to coco here
+		self.coco_generator.add_image(w, h, background.filename.clone(), background.date_captured.clone());
 		
 		for obj in set {
 			let clone = &obj.dynamic_image.clone();
@@ -50,14 +56,27 @@ impl TargetGenerator {
 			let (x, y) = (thread_rng().gen_range(0..w - obj_w), thread_rng().gen_range(0..h - obj_h));
 			trace!("Placing object at {}, {}", x, y);
 			
-			let (obj_w, obj_h) = new_sizes(obj_w, obj_h, pixels_per_meter, obj.object_width_meters);
+			let (obj_w, obj_h) = new_sizes(obj_w, obj_h, pixels_per_meter, obj.object_width_meters)?;
 			debug!("Resizing object to {}x{}", obj_w, obj_h);
 			
 			// overlay respects transparent pixels unlike copy_from
-			image::imageops::overlay(&mut background, &clone.resize(obj_w, obj_h, FilterType::Gaussian), x as i64, y as i64);
+			image::imageops::overlay(&mut image, &clone.resize(obj_w, obj_h, FilterType::Gaussian), x as i64, y as i64);
+			
+			// TODO: remove, both are top left
+			//imageproc::drawing::draw_filled_circle_mut(&mut image, (x as i32, y as i32), 4, Rgba([255, 0, 0, 255]));
+			//imageproc::drawing::draw_filled_circle_mut(&mut image, (0i32, 0i32), 8, Rgba([255, 0, 255, 255]));
+			imageproc::drawing::draw_hollow_rect_mut(&mut image, imageproc::rect::Rect::at(x as i32, y as i32).of_size(obj_w, obj_h), Rgba([0, 255, 0, 255]));
+			
+			// add annotation to coco here
+			self.coco_generator.add_annotation(0, obj.object_class as u32, 0, vec![], (obj_w * obj_h) as f64, coco::BoundingBox {
+				x,
+				y,
+				width: obj_w,
+				height: obj_h,
+			});
 		}
 
-		Ok(background)
+		Ok(image)
 	}
 
 	pub fn generate_targets<A: AsRef<Path>>(&self, amount: u32, range_to: RangeTo<u32>, path: A) -> Result<()> {
@@ -68,6 +87,10 @@ impl TargetGenerator {
 		debug!("Generation completed, generated {} in average {}ms", amount, start.elapsed().as_millis() / amount as u128);
 
 		Ok(())
+	}
+	
+	pub fn close(&self) {
+		self.coco_generator.save();
 	}
 }
 
@@ -84,37 +107,27 @@ fn resize_ratio(object_real_size: f32, pixels_per_meter: f32) -> f32 {
 /// 1. Calculate the aspect ratio
 /// 2. Calculate the width of the object in pixels that we expect based on the real width and the Pixels Per Meter value
 /// 3. Calculate the height from this new width using the previously calculated aspect ratio
-fn new_sizes(object_width: u32, object_height: u32, pixels_per_meter: f32, real_width: f32) -> (u32, u32) {
+fn new_sizes(object_width: u32, object_height: u32, pixels_per_meter: f32, real_width: f32) -> Result<(u32, u32), GenerationError> {
 	let (w, h) = (object_width as f32, object_height as f32);
 	let aspect_ratio = w / h;
 	let new_width = resize_ratio(real_width, pixels_per_meter) as u32;
 	let new_height = (new_width as f32 / aspect_ratio) as u32;
 	
-	(new_width, new_height)
+	if new_height == 0 || new_width == 0 {
+		return Err(GenerationError::SizeError);
+	}
+	
+	Ok((new_width, new_height))
 }
 
-fn degrees_to_radians(degrees: f32) -> f32 {
-	degrees * std::f32::consts::PI / 180.0
-}
-
-// Calculate the fov in radians based on the image width, height and focal length
-fn calculate_fov(image_width: u32, image_height: u32, focal_length: f32) -> f32 {
-	2.0 * (0.5 * image_width as f32 / focal_length).atan()
-}
-
-/// Calculate the width of the ground in meters based on camera position and field of view
-fn calculate_ground_width(altitude: f32, fov: f32) -> f32 {
-	2.0 * altitude * (fov.to_radians() / 2.0).tan()
-}
-
-fn meters_per_pixel(image_width: u32, ground_width: f32) -> f32 {
-	ground_width / image_width as f32
-}
-
-/// This gives you the expected size of an object in pixels, use this to calculate a ratio between
-/// the expected and actual values. Then use that to scale up/down the object to the expected size
-fn expected_object_size_pixels(real_size: f32, meters_per_pixel: f32) -> f32 {
-	real_size / meters_per_pixel
+#[derive(Debug, Error)]
+pub enum GenerationError {
+	#[error("Serde decoding or encoding error")]
+	SerdeError(#[from] serde_json::Error),
+	#[error("IO error occurred while generating target")]
+	IOError(#[from] std::io::Error),
+	#[error("Calculated new sizes provided an invalid size")]
+	SizeError
 }
 
 #[test]
@@ -122,9 +135,11 @@ fn expected_object_size_pixels(real_size: f32, meters_per_pixel: f32) -> f32 {
 pub fn test_generate_target() {
 	SimpleLogger::new().init().unwrap();
 
-	let tg = TargetGenerator::new("output", "backgrounds", "objects", "output").unwrap();
-	let b = tg.generate_target(22.8, degrees_to_radians(35.0), 1, STANDARD_PPM).unwrap();
+	let mut tg = TargetGenerator::new("output", "backgrounds", "objects", "output/annotations.json").unwrap();
+	let b = tg.generate_target(STANDARD_PPM).unwrap();
 
 	b.save("output_1.png".to_string()).unwrap();
 	debug!("Saved generated target to output_1.png");
+	
+	tg.close();
 }

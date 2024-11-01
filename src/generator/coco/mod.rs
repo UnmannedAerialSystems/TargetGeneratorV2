@@ -1,5 +1,6 @@
 // https://docs.aws.amazon.com/rekognition/latest/customlabels-dg/md-coco-overview.html
 
+use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
@@ -36,8 +37,9 @@ impl CocoGenerator {
 	}
 	
 	pub fn save(&self) {
-		let json = serde_json::to_string_pretty(&self.file).unwrap();
-		std::fs::write(&self.file_path, json).unwrap();
+		let file = OpenOptions::new().write(true).create(true).open(&self.file_path).unwrap();
+		
+		serde_json::to_writer_pretty(file, &self.file).unwrap();
 	}
 	
 	/// Add a background image in, then return the image id
@@ -143,5 +145,5 @@ impl CocoCategory {
 }
 
 pub trait CocoCategoryInfo {
-	fn new(&self) -> Vec<CocoCategory>;
+	fn categories() -> Vec<CocoCategory>;
 }

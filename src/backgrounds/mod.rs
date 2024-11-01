@@ -1,8 +1,10 @@
 use std::fs;
+use std::fs::DirEntry;
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
 use anyhow::{anyhow, Result};
+use chrono::{DateTime, Local};
 use image::{DynamicImage, RgbaImage};
 use log::{debug, trace, warn};
 use rand::seq::SliceRandom;
@@ -11,7 +13,7 @@ use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
 
 pub struct BackgroundLoader {
-	pub backgrounds: Vec<RgbaImage>,
+	pub backgrounds: Vec<BackgroundImage>,
 }
 
 impl BackgroundLoader {
@@ -27,8 +29,8 @@ impl BackgroundLoader {
 
 		debug!("Loading backgrounds from: {:?}", dir);
 
-		// parallelize here because loading images can be slow
-		fs::read_dir(dir)?.for_each(|entry| {
+		// TODO: parallelize here because loading images can be slow
+		fs::read_dir(dir)?.for_each(|entry | {
 			let entry = entry.unwrap();
 			let path = entry.path();
 
@@ -39,30 +41,40 @@ impl BackgroundLoader {
 			let path_name = path.display().to_string();
 			
 			if let Ok(img) = image::open(path) {
-				v.push(img);
+				let datetime: DateTime<Local> = entry.metadata().unwrap().created().unwrap().into();
+				
+				let back = BackgroundImage {
+					image: img.to_rgba8(),
+					filename: path_name.clone(),
+					date_captured: datetime.to_string(),
+					id: v.len() as u32,
+				};
+				
+				v.push(back);
 			} else {
 				warn!("Failed to load image: {}", path_name);
 			}
 			
 			debug!("Loaded image in {}ms: {}", start.elapsed().as_millis(), path_name);
 		});
-
-		let mut r = vec![];
-		
-		for img in v.iter() {
-			r.push(img.to_rgba8());
-		}
 		
 		let x = Ok(Self { // don't ask why we need to make a variable here, it just works
-			backgrounds: r
+			backgrounds: v
 		});
 
 		x
 	}
 
-	pub fn random(&self) -> Option<&RgbaImage> {
+	pub fn random(&self) -> Option<&BackgroundImage> {
 		self.backgrounds.choose(&mut thread_rng())
 	}
+}
+
+pub struct BackgroundImage {
+	pub image: RgbaImage,
+	pub filename: String,
+	pub date_captured: String,
+	pub id: u32,
 }
 
 #[test]

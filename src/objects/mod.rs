@@ -90,7 +90,7 @@ impl ObjectManager {
 
 #[derive(Debug, Clone)]
 pub struct Object {
-	object_class: ObjectClass,
+	pub(crate) object_class: ObjectClass,
 	id: u16,
 	pub(crate) dynamic_image: DynamicImage,
 	pub(crate) object_width_meters: f32,
@@ -138,16 +138,23 @@ impl ObjectClass {
 			ObjectClass::TIRE => "tire",
 		}
 	}
+	
+	/// Gets the numerical id of the object class for COCO format category id.
+	/// NOTE: object ids should be sequential and non-duplicative
+	pub fn id(&self) -> u32 {
+		match self {
+			ObjectClass::BICYCLE => 0,
+			ObjectClass::TIRE => 1,
+		}
+	}
 }
 
 impl CocoCategoryInfo for ObjectClass {
-	fn new(&self) -> Vec<CocoCategory> {
+	fn categories() -> Vec<CocoCategory> {
 		let mut v = vec![];
-		let mut id = 0;
 		
 		for object_class in ObjectClass::iter() {
-			v.push(CocoCategory::new(id, object_class.prefix().to_string()));
-			id += 1;
+			v.push(CocoCategory::new(object_class.id(), object_class.prefix().to_string()));
 		}
 		
 		v
@@ -175,6 +182,7 @@ pub struct PlacedObject {
 	bounding_box: BoundingBox
 }
 
+// Used to generate the starting object mapping file
 #[ignore]
 #[test]
 fn generate_objects_json_file() {
@@ -199,4 +207,14 @@ fn generate_objects_json_file() {
 	let json = serde_json::to_string_pretty(&object_details_file).unwrap();
 	
 	std::fs::write("objects/objects.json", json).unwrap();
+}
+
+#[test]
+fn ensure_sequential_no_duplicate_ids() {
+	let mut id = 0;
+	
+	for object_class in ObjectClass::iter() {
+		assert_eq!(object_class.id(), id, "Object class id is not sequential for {:?}", object_class);
+		id += 1;
+	}
 }
