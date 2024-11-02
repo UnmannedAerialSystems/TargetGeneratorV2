@@ -3,7 +3,6 @@ use std::fs::DirEntry;
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::Instant;
-use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local};
 use image::{DynamicImage, RgbaImage};
 use log::{debug, trace, warn};
@@ -11,20 +10,21 @@ use rand::seq::SliceRandom;
 use rand::{Rng, thread_rng};
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
+use crate::generator::error::GenerationError;
 
 pub struct BackgroundLoader {
 	pub backgrounds: Vec<BackgroundImage>,
 }
 
 impl BackgroundLoader {
-	pub fn new<Q: AsRef<Path>>(path: Q) -> Result<BackgroundLoader> {
+	pub fn new<Q: AsRef<Path>>(path: Q) -> Result<BackgroundLoader, GenerationError> {
 		let dir = path.as_ref().to_path_buf();
 		let mut v = vec![]; // mutex for multi-thread access
 
 		let start = Instant::now();
 
 		if !dir.is_dir() {
-			return Err(anyhow!("Path provided is not a directory!"));
+			return Err(GenerationError::NotADirectory);
 		}
 
 		debug!("Loading backgrounds from: {:?}", dir);

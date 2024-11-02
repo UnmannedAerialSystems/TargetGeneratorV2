@@ -59,7 +59,7 @@ impl CocoGenerator {
 		self.image_id
 	}
 	
-	pub fn add_annotation(&mut self, image_id: u32, category_id: u32, iscrowd: u8, segmentation: Vec<Vec<f32>>, area: f64, bbox: BoundingBox) {
+	pub fn add_annotation(&mut self, image_id: u32, category_id: u32, iscrowd: u8, segmentation: Vec<Vec<f32>>, area: f64, bbox: BoundingBox) -> u32 {
 		self.file.annotations.push(CocoAnnotation {
 			id: Some(self.annotation_id),
 			image_id,
@@ -70,6 +70,8 @@ impl CocoGenerator {
 			bbox,
 		});
 		self.annotation_id += 1;
+		
+		self.annotation_id
 	}
 }
 
