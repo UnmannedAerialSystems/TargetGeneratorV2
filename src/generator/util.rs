@@ -1,7 +1,7 @@
 use log::debug;
 use crate::generator::error::GenerationError;
 
-pub const STANDARD_PPM: f32 = 35.0;
+pub const STANDARD_PPM: f32 = 25.0;
 
 /// Use the real size of an object and the Pixels Per Meter value to calculate the size in 
 /// pixels that it should be in order to be at scale

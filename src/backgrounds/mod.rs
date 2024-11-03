@@ -1,25 +1,24 @@
+use rayon::iter::ParallelIterator;
 use std::fs;
-use std::fs::DirEntry;
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use chrono::{DateTime, Local};
-use image::{DynamicImage, RgbaImage};
+use image::{RgbaImage};
 use log::{debug, trace, warn};
 use rand::seq::SliceRandom;
-use rand::{Rng, thread_rng};
+use rand::{thread_rng};
 use rayon::iter::ParallelBridge;
-use rayon::iter::ParallelIterator;
 use crate::generator::error::GenerationError;
 
 pub struct BackgroundLoader {
-	pub backgrounds: Vec<BackgroundImage>,
+	pub backgrounds: Arc<Mutex<Vec<BackgroundImage>>>,
 }
 
 impl BackgroundLoader {
 	pub fn new<Q: AsRef<Path>>(path: Q) -> Result<BackgroundLoader, GenerationError> {
 		let dir = path.as_ref().to_path_buf();
-		let mut v = vec![]; // mutex for multi-thread access
+		let mut v = Arc::new(Mutex::new(vec![])); // mutex for multi-thread access
 
 		let start = Instant::now();
 
@@ -29,8 +28,7 @@ impl BackgroundLoader {
 
 		debug!("Loading backgrounds from: {:?}", dir);
 
-		// TODO: parallelize here because loading images can be slow
-		fs::read_dir(dir)?.for_each(|entry | {
+		fs::read_dir(dir)?.par_bridge().for_each(|entry | {
 			let entry = entry.unwrap();
 			let path = entry.path();
 
@@ -47,10 +45,10 @@ impl BackgroundLoader {
 					image: img.to_rgba8(),
 					filename: path_name.clone(),
 					date_captured: datetime.to_string(),
-					id: v.len() as u32,
+					id: v.lock().unwrap().len() as u32,
 				};
 				
-				v.push(back);
+				v.lock().unwrap().push(back);
 			} else {
 				warn!("Failed to load image: {}", path_name);
 			}
@@ -65,11 +63,18 @@ impl BackgroundLoader {
 		x
 	}
 
-	pub fn random(&self) -> Option<&BackgroundImage> {
-		self.backgrounds.choose(&mut thread_rng())
+	pub fn random(&self) -> Option<BackgroundImage> {
+		let lock = self.backgrounds.lock().unwrap();
+		
+		if let Some(bg) = lock.choose(&mut thread_rng()) {
+			Some(bg.clone())
+		} else {
+			None
+		}
 	}
 }
 
+#[derive(Clone)]
 pub struct BackgroundImage {
 	pub image: RgbaImage,
 	pub filename: String,
@@ -84,8 +89,8 @@ fn test_bg_loader() {
 
 	let bg_loader = BackgroundLoader::new("backgrounds").unwrap();
 
-	(0..10).par_bridge().for_each(|i| {
+	/*(0..10).par_bridge().for_each(|i| {
 		/*let bg = bg_loader.random_augment(Some((-20, 20)), true).unwrap();
 		bg.save(format!("output/output{}.png", i)).unwrap();*/
-	});
+	});*/
 }

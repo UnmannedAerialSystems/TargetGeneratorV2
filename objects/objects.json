@@ -1,16 +1,28 @@
 {
-  "map": {
-    "bicycle_1": {
-      "ground_width": 1.73
+  "object_images": {
+    "bicycle_1.png": {
+      "ground_width": 1.73,
+      "object_type": 0
     },
-    "bicycle_2": {
-      "ground_width": 1.73
+    "bicycle_2.png": {
+      "ground_width": 1.73,
+      "object_type": 0
     },
-    "tire_1": {
-      "ground_width": 1.0
+    "tire_1.png": {
+      "ground_width": 1.0,
+      "object_type": 1
     },
-    "tire_2": {
-      "ground_width": 1.0
+    "tire_2.png": {
+      "ground_width": 1.0,
+      "object_type": 1
+    }
+  },
+  "object_types": {
+    "0": {
+      "name": "bicycle"
+    },
+    "1": {
+      "name": "tire"
     }
   }
 }

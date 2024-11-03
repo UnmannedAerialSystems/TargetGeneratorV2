@@ -14,6 +14,8 @@ pub enum GenerationError {
 	GenericError(String),
 	#[error("Not enough objects available to generate")]
 	NotEnoughObjectsAvailable,
+	#[error("Too many collisions occurred while generating objects, try reducing the number of objects")]
+	TooManyCollisions,
 
 	// conversions
 	#[error("Error parsing integer")]

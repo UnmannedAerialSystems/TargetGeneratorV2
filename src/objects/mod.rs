@@ -6,12 +6,14 @@ use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
 use strum::{EnumIter, IntoEnumIterator};
 use crate::generator::coco::{BoundingBox, CocoCategory, CocoCategoryInfo};
+use crate::generator::config::TargetGeneratorConfig;
 use crate::generator::error::GenerationError;
 
 #[derive(Debug)]
 pub struct ObjectManager {
 	path_buf: PathBuf,
 	objects: Vec<Object>,
+	object_set: HashSet<(u32, String)>
 }
 
 impl ObjectManager {
@@ -19,6 +21,7 @@ impl ObjectManager {
 		ObjectManager {
 			path_buf: path.as_ref().to_path_buf(),
 			objects: vec![],
+			object_set: HashSet::new()
 		}
 	}
 	
@@ -47,7 +50,7 @@ impl ObjectManager {
 			let prefix = name_parts.next().unwrap();
 			let id = name_parts.next().unwrap().parse::<u16>()?;
 			
-			let object_details = object_details_file.map.get(&format!("{}_{}", prefix, id));
+			let object_details = object_details_file.object_images.get(path.file_name().unwrap().to_str().unwrap());
 			
 			if object_details.is_none() {
 				warn!("No object details found for object: {}", path.display());
@@ -56,10 +59,11 @@ impl ObjectManager {
 			
 			let object_details = object_details.unwrap();
 			
-			let object_class = ObjectClass::from_prefix(prefix);
+			self.object_set.insert((object_details.object_type, prefix.to_string()));
+			
 			let dynamic_image = image::open(path)?;
 			self.objects.push(Object {
-				object_class,
+				object_class: object_details.object_type,
 				id,
 				dynamic_image,
 				object_width_meters: object_details.ground_width,
@@ -72,25 +76,43 @@ impl ObjectManager {
 	/// Generate a set of training objects a random that could be used to generate a target
 	/// [amount] is the maximum number of objects to return
 	/// Returns a set of objects that will contain no duplicates
-	pub fn generate_set(&self, amount: u32) -> Result<HashSet<&Object>, GenerationError> {
+	pub fn generate_set(&self, amount: u32, config: &TargetGeneratorConfig) -> Result<Vec<&Object>, GenerationError> {
 		let mut rng = rand::thread_rng();
-		let mut set = HashSet::new();
+		let mut set = Vec::new();
 		
-		if amount > self.objects.len() as u32 {
-			return Err(GenerationError::NotEnoughObjectsAvailable);
+		if !config.permit_duplicates {
+			if amount > self.objects.len() as u32 {
+				return Err(GenerationError::NotEnoughObjectsAvailable);
+			}
+
+			self.objects.choose_multiple(&mut rng, amount as usize).for_each(|object| {
+				set.push(object);
+			});
+		} else {
+			for _ in 0..amount {
+				set.push(self.objects.choose(&mut rng).unwrap());
+			}
 		}
-		
-		self.objects.choose_multiple(&mut rng, amount as usize).for_each(|object| {
-			set.insert(object);
-		});
 		
 		Ok(set)
 	}
 }
 
+impl CocoCategoryInfo for ObjectManager {
+	fn categories(&self) -> Vec<CocoCategory> {
+		let mut categories = vec![];
+		
+		for (object_type, name) in &self.object_set {
+			categories.push(CocoCategory::new(*object_type, name.clone()));
+		}
+		
+		categories
+	}
+}
+
 #[derive(Debug, Clone)]
 pub struct Object {
-	pub(crate) object_class: ObjectClass,
+	pub(crate) object_class: u32,
 	id: u16,
 	pub(crate) dynamic_image: DynamicImage,
 	pub(crate) object_width_meters: f32,
@@ -117,149 +139,76 @@ impl std::hash::Hash for Object {
 	}
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
-pub enum ObjectClass {
-	BICYCLE,
-	TIRE
-}
-
-impl ObjectClass {
-	pub fn from_prefix(prefix: &str) -> ObjectClass {
-		match prefix {
-			"bicycle" => ObjectClass::BICYCLE,
-			"tire" => ObjectClass::TIRE,
-			_ => panic!("Unknown object class: {}", prefix),
-		}
-	}
-	
-	pub fn prefix(&self) -> &str {
-		match self {
-			ObjectClass::BICYCLE => "bicycle",
-			ObjectClass::TIRE => "tire",
-		}
-	}
-	
-	/// Gets the numerical id of the object class for COCO format category id.
-	/// NOTE: object ids should be sequential and non-duplicative
-	pub fn id(&self) -> u32 {
-		match self {
-			ObjectClass::BICYCLE => 0,
-			ObjectClass::TIRE => 1,
-		}
-	}
-}
-
-impl CocoCategoryInfo for ObjectClass {
-	fn categories() -> Vec<CocoCategory> {
-		let mut v = vec![];
-		
-		for object_class in ObjectClass::iter() {
-			v.push(CocoCategory::new(object_class.id(), object_class.prefix().to_string()));
-		}
-		
-		v
-	}
-}
-
 /// Represents the object details file that holds all the information about the training objects
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct ObjectDetailsFile {
-	map: HashMap<String, ObjectDetails>
+	object_images: HashMap<String, ObjectDetails>,
+	object_types: HashMap<u32, ObjectType>
 }
 
 /// All details about a training object
 #[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
 pub struct ObjectDetails {
-	ground_width: f32
+	ground_width: f32,
+	object_type: u32,
 }
 
-#[derive(Debug, PartialEq, Copy, Clone, Serialize, Deserialize)]
-pub struct PlacedObject {
-	pub(crate) id: u32,
-	pub(crate) bounding_box: BoundingBox
-}
-
-impl PlacedObject {
-	pub fn collides_with(&self, other: &PlacedObject) -> bool {
-		if self.id == other.id {
-			return false;
-		}
-		
-		let (x1, y1, w1, h1) = (self.bounding_box.x, self.bounding_box.y, self.bounding_box.width, self.bounding_box.height);
-		let (x2, y2, w2, h2) = (other.bounding_box.x, other.bounding_box.y, other.bounding_box.width, other.bounding_box.height);
-		
-		x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2
-	}
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub struct ObjectType {
+	name: String,
 }
 
 #[test]
 fn ensure_sequential_no_duplicate_ids() {
-	let mut id = 0;
-
-	for object_class in ObjectClass::iter() {
-		assert_eq!(object_class.id(), id, "Object class id is not sequential for {:?}", object_class);
-		id += 1;
+	let mut object_manager = ObjectManager::new("objects");
+	object_manager.load_objects().unwrap();
+	
+	let mut ids = vec![];
+	
+	for object in object_manager.objects {
+		ids.push(object.id);
 	}
-}
-
-#[test]
-pub fn collision_detection_test() {
-	let obj1 = PlacedObject {
-		id: 0,
-		bounding_box: BoundingBox {
-			x: 0,
-			y: 0,
-			width: 10,
-			height: 10
-		}
-	};
 	
-	let obj2 = PlacedObject {
-		id: 1,
-		bounding_box: BoundingBox {
-			x: 5,
-			y: 5,
-			width: 10,
-			height: 10
-		}
-	};
+	ids.sort();
 	
-	let obj3 = PlacedObject {
-		id: 2,
-		bounding_box: BoundingBox {
-			x: 20,
-			y: 20,
-			width: 10,
-			height: 10
-		}
-	};
-	
-	assert!(obj1.collides_with(&obj2));
-	assert!(!obj1.collides_with(&obj3));
-	assert!(!obj2.collides_with(&obj3));
-	assert!(!obj2.collides_with(&obj2));
+	for i in 0..ids.len() {
+		assert_eq!(ids[i], i as u16);
+	}
 }
 
 // Used to generate the starting object mapping file
 #[ignore]
 #[test]
 fn generate_objects_json_file() {
-	let mut map = HashMap::new();
-	map.insert("bicycle_1".to_string(), ObjectDetails {
-		ground_width: 1.73
+	let mut object_images = HashMap::new();
+	object_images.insert("bicycle_1.png".to_string(), ObjectDetails {
+		ground_width: 1.73,
+		object_type: 0
 	});
-	map.insert("bicycle_2".to_string(), ObjectDetails {
-		ground_width: 1.73
+	object_images.insert("bicycle_2.png".to_string(), ObjectDetails {
+		ground_width: 1.73,
+		object_type: 0
 	});
-	map.insert("tire_1".to_string(), ObjectDetails {
-		ground_width: 1.0
+	object_images.insert("tire_1.png".to_string(), ObjectDetails {
+		ground_width: 1.0,
+		object_type: 1
 	});
-	map.insert("tire_2".to_string(), ObjectDetails {
-		ground_width: 1.0
+	object_images.insert("tire_2.png".to_string(), ObjectDetails {
+		ground_width: 1.0,
+		object_type: 1
+	});
+	
+	let mut object_types = HashMap::new();
+	object_types.insert(0, ObjectType {
+		name: "bicycle".to_string()
+	});
+	object_types.insert(1, ObjectType {
+		name: "tire".to_string()
 	});
 	
 	let object_details_file = ObjectDetailsFile {
-		map
+		object_images,
+		object_types
 	};
 	
 	let json = serde_json::to_string_pretty(&object_details_file).unwrap();

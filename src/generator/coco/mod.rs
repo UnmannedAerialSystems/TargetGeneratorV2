@@ -2,6 +2,8 @@
 
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
+use chrono::{DateTime, Datelike, Local};
 use serde::{Deserialize, Serialize};
 
 /// Bounding box format: [x, y, width, height] where 0,0 is the top left corner
@@ -11,6 +13,12 @@ pub struct BoundingBox {
 	pub y: u32,
 	pub width: u32,
 	pub height: u32,
+}
+
+impl BoundingBox {
+	pub fn collides_with(&self, other: &Self) -> bool {
+		self.x < other.x + other.width && self.x + self.width > other.x && self.y < other.y + other.height && self.y + self.height > other.y
+	}
 }
 
 pub struct CocoGenerator {
@@ -84,7 +92,7 @@ pub struct CocoFormatFile {
 	categories: Vec<CocoCategory>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CocoFormatInfo {
 	description: String,
 	url: String,
@@ -92,6 +100,21 @@ pub struct CocoFormatInfo {
 	year: u32,
 	contributor: String,
 	date_created: String,
+}
+
+impl Default for CocoFormatInfo {
+	fn default() -> Self {
+		let datetime: DateTime<Local> = SystemTime::now().into();
+		
+		Self {
+			description: "Auto Generated Dataset in COCO format".to_string(),
+			url: "".to_string(),
+			version: "1.0".to_string(),
+			year: datetime.year() as u32,
+			contributor: "".to_string(),
+			date_created: datetime.to_string(),
+		}
+	}
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -147,5 +170,17 @@ impl CocoCategory {
 }
 
 pub trait CocoCategoryInfo {
-	fn categories() -> Vec<CocoCategory>;
+	fn categories(&self) -> Vec<CocoCategory>;
+}
+
+#[test]
+fn test_collision_detector() {
+	let a = BoundingBox { x: 0, y: 0, width: 10, height: 10 };
+	let b = BoundingBox { x: 5, y: 5, width: 10, height: 10 };
+	let c = BoundingBox { x: 20, y: 20, width: 10, height: 10 };
+	
+	assert!(a.collides_with(&b));
+	assert!(!a.collides_with(&c));
+	assert!(b.collides_with(&a));
+	assert!(a.collides_with(&a));
 }

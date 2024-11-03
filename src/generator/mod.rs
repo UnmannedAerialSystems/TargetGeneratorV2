@@ -1,7 +1,7 @@
 use std::ops::RangeTo;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
-use image::{GenericImage, ImageBuffer, Rgba, RgbaImage};
+use image::{DynamicImage, GenericImage, ImageBuffer, Rgba, RgbaImage};
 use image::imageops::FilterType;
 use imageproc::drawing::draw_text_mut;
 use log::{debug, trace};
@@ -12,14 +12,17 @@ use thiserror::Error;
 use error::GenerationError;
 use util::STANDARD_PPM;
 use crate::backgrounds::BackgroundLoader;
-use crate::generator::coco::{CocoCategoryInfo, CocoGenerator};
+use crate::generator::coco::{BoundingBox, CocoCategoryInfo, CocoGenerator};
 use crate::generator::config::TargetGeneratorConfig;
-use crate::objects::{ObjectClass, ObjectManager, PlacedObject};
+use crate::objects::{ObjectManager};
+use moka::sync::{Cache, CacheBuilder};
 
 pub mod coco;
 pub mod error;
 pub(crate) mod util;
 pub mod config;
+
+const COLLISION_ATTEMPTS: u32 = 15;
 
 pub struct TargetGenerator {
 	output: PathBuf,
@@ -28,6 +31,7 @@ pub struct TargetGenerator {
 	background_loader: BackgroundLoader,
 	coco_generator: CocoGenerator,
 	config: TargetGeneratorConfig,
+	resized_cache: Cache<u32, DynamicImage>,
 }
 
 impl TargetGenerator {
@@ -36,13 +40,23 @@ impl TargetGenerator {
 		let mut object_manager = ObjectManager::new(objects_path);
 		object_manager.load_objects()?;
 		
+		let categories = object_manager.categories();
+		let config = TargetGeneratorConfig::default();
+		
+		let resized_cache: Cache<u32, DynamicImage> = CacheBuilder::new(config.cache_size as u64 * 1024 * 1024)
+			.weigher(|_key, value: &DynamicImage| -> u32 { // evict based on size in MBs
+				value.as_bytes().len() as u32
+			})
+			.build();
+		
 		Ok(Self {
 			output: output.as_ref().to_path_buf(),
 			backgrounds_path: background_path.as_ref().to_path_buf(),
 			object_manager,
 			background_loader: BackgroundLoader::new(background_path)?,
-			coco_generator: CocoGenerator::new(annotations_path, ObjectClass::categories()),
-			config: TargetGeneratorConfig::default(),
+			coco_generator: CocoGenerator::new(annotations_path, categories),
+			config,
+			resized_cache,
 		})
 	}
 
@@ -56,7 +70,7 @@ impl TargetGenerator {
 		let background = self.background_loader.random().unwrap();
 		let mut image = background.image.clone();
 		let (w, h) = (image.width(), image.height());
-		let set = self.object_manager.generate_set(number_of_objects as u32)?;
+		let set = self.object_manager.generate_set(number_of_objects as u32, &self.config)?;
 		let mut placed_objects = vec![];
 		
 		// add background image to coco here
@@ -65,14 +79,22 @@ impl TargetGenerator {
 		for obj in set {
 			let clone = &obj.dynamic_image.clone();
 			let (obj_w, obj_h) = (obj.dynamic_image.width(), obj.dynamic_image.height());
-			let (x, y) = (thread_rng().gen_range(0..w - obj_w), thread_rng().gen_range(0..h - obj_h));
+			let (x, y) = self.generate_new_location_no_collision((w, h), (obj_w, obj_h), &placed_objects)?;
 			trace!("Placing object at {}, {}", x, y);
 			
 			let (obj_w, obj_h) = util::new_sizes(obj_w, obj_h, pixels_per_meter, obj.object_width_meters)?;
 			debug!("Resizing object to {}x{}", obj_w, obj_h);
 			
 			// overlay respects transparent pixels unlike copy_from
-			image::imageops::overlay(&mut image, &clone.resize(obj_w, obj_h, FilterType::Gaussian), x as i64, y as i64);
+			let resized = if let Some(resized) = self.resized_cache.get(&obj_w) {
+				resized.clone()
+			} else {
+				let resized = clone.resize(obj_w, obj_h, FilterType::Gaussian);
+				self.resized_cache.insert(obj_w, resized.clone());
+				resized
+			};
+			
+			image::imageops::overlay(&mut image, &resized, x as i64, y as i64);
 			
 			if self.config.visualize_bboxes {
 				imageproc::drawing::draw_hollow_rect_mut(&mut image, imageproc::rect::Rect::at(x as i32, y as i32).of_size(obj_w, obj_h), Rgba([0, 255, 0, 255]));
@@ -82,7 +104,7 @@ impl TargetGenerator {
 				imageproc::drawing::draw_filled_rect_mut(&mut image, imageproc::rect::Rect::at(x as i32, y as i32).of_size(obj_w, obj_h), color);
 			}
 			
-			let bbox = coco::BoundingBox {
+			let bbox = BoundingBox {
 				x,
 				y,
 				width: obj_w,
@@ -90,12 +112,9 @@ impl TargetGenerator {
 			};
 			
 			// add annotation to coco here
-			let object_id = self.coco_generator.add_annotation(background_id, obj.object_class as u32, 0, vec![], (obj_w * obj_h) as f64, bbox);
+			self.coco_generator.add_annotation(background_id, obj.object_class as u32, 0, vec![], (obj_w * obj_h) as f64, bbox);
 			
-			placed_objects.push(PlacedObject {
-				id: object_id,
-				bounding_box: bbox,
-			});
+			placed_objects.push(bbox);
 		}
 
 		Ok(image)
@@ -111,8 +130,34 @@ impl TargetGenerator {
 		Ok(())
 	}
 	
-	pub fn generate_new_location_no_collision(&self) -> (u32, u32) {
-		todo!() // TODO: use collision detection to find a new location
+	pub fn generate_new_location_no_collision(&self, bg_dimensions: (u32, u32), obj_dimensions: (u32, u32), placed_objects: &Vec<BoundingBox>) -> Result<(u32, u32), GenerationError> {
+		let mut i = 0;
+		
+		loop {
+			if i >= COLLISION_ATTEMPTS {
+				return Err(GenerationError::TooManyCollisions)
+			}
+			
+			let x = thread_rng().gen_range(0..bg_dimensions.0);
+			let y = thread_rng().gen_range(0..bg_dimensions.1);
+
+			if self.config.permit_collisions {
+				return Ok((x, y));
+			}
+
+			let bbox = BoundingBox {
+				x,
+				y,
+				width: obj_dimensions.0,
+				height: obj_dimensions.1,
+			};
+			
+			if placed_objects.iter().all(|placed| !placed.collides_with(&bbox)) {
+				return Ok((x, y));
+			}
+
+			i += 1;
+		}
 	}
 	
 	pub fn close(&self) {
@@ -126,7 +171,9 @@ pub fn test_generate_target() {
 	SimpleLogger::new().init().unwrap();
 
 	let mut tg = TargetGenerator::new("output", "backgrounds", "objects", "output/annotations.json").unwrap();
-	let b = tg.generate_target(STANDARD_PPM, 1).unwrap();
+	tg.config.permit_duplicates = true;
+	tg.config.permit_collisions = true;
+	let b = tg.generate_target(STANDARD_PPM, 200).unwrap();
 
 	b.save("output_1.png".to_string()).unwrap();
 	debug!("Saved generated target to output_1.png");
