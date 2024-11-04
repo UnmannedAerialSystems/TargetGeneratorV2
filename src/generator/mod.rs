@@ -1,5 +1,7 @@
+use rayon::iter::ParallelIterator;
 use std::ops::RangeTo;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use image::{DynamicImage, GenericImage, ImageBuffer, Rgba, RgbaImage};
 use image::imageops::FilterType;
@@ -16,6 +18,7 @@ use crate::generator::coco::{BoundingBox, CocoCategoryInfo, CocoGenerator};
 use crate::generator::config::TargetGeneratorConfig;
 use crate::objects::{ObjectManager};
 use moka::sync::{Cache, CacheBuilder};
+use rayon::iter::{IntoParallelIterator, ParallelBridge};
 
 pub mod coco;
 pub mod error;
@@ -29,9 +32,9 @@ pub struct TargetGenerator {
 	backgrounds_path: PathBuf,
 	pub object_manager: ObjectManager,
 	background_loader: BackgroundLoader,
-	coco_generator: CocoGenerator,
+	coco_generator: Arc<Mutex<CocoGenerator>>,
 	config: TargetGeneratorConfig,
-	resized_cache: Cache<u32, DynamicImage>,
+	resized_cache: Cache<String, DynamicImage>,
 }
 
 impl TargetGenerator {
@@ -43,7 +46,7 @@ impl TargetGenerator {
 		let categories = object_manager.categories();
 		let config = TargetGeneratorConfig::default();
 		
-		let resized_cache: Cache<u32, DynamicImage> = CacheBuilder::new(config.cache_size as u64 * 1024 * 1024)
+		let resized_cache: Cache<String, DynamicImage> = CacheBuilder::new(config.cache_size as u64 * 1024 * 1024)
 			.weigher(|_key, value: &DynamicImage| -> u32 { // evict based on size in MBs
 				value.as_bytes().len() as u32
 			})
@@ -54,13 +57,13 @@ impl TargetGenerator {
 			backgrounds_path: background_path.as_ref().to_path_buf(),
 			object_manager,
 			background_loader: BackgroundLoader::new(background_path)?,
-			coco_generator: CocoGenerator::new(annotations_path, categories),
+			coco_generator: Arc::new(Mutex::new(CocoGenerator::new(annotations_path, categories))),
 			config,
 			resized_cache,
 		})
 	}
 
-	pub fn generate_target(&mut self, pixels_per_meter: f32, number_of_objects: u16) -> Result<RgbaImage, GenerationError> {
+	pub fn generate_target(&self, pixels_per_meter: f32, number_of_objects: u16) -> Result<RgbaImage, GenerationError> {
 		trace!("Beginning to generate a target...");
 		
 		if number_of_objects == 0 {
@@ -74,7 +77,7 @@ impl TargetGenerator {
 		let mut placed_objects = vec![];
 		
 		// add background image to coco here
-		let background_id = self.coco_generator.add_image(w, h, background.filename.clone(), background.date_captured.clone());
+		let background_id = self.coco_generator.lock().unwrap().add_image(w, h, background.filename.clone(), background.date_captured.clone());
 		
 		for obj in set {
 			let clone = &obj.dynamic_image.clone();
@@ -86,11 +89,11 @@ impl TargetGenerator {
 			debug!("Resizing object to {}x{}", obj_w, obj_h);
 			
 			// overlay respects transparent pixels unlike copy_from
-			let resized = if let Some(resized) = self.resized_cache.get(&obj_w) {
+			let resized = if let Some(resized) = self.resized_cache.get(&format!("{}x{}_{}", obj_w, obj_h, obj.object_class)) {
 				resized.clone()
 			} else {
 				let resized = clone.resize(obj_w, obj_h, FilterType::Gaussian);
-				self.resized_cache.insert(obj_w, resized.clone());
+				self.resized_cache.insert(format!("{}x{}_{}", obj_w, obj_h, obj.object_class), resized.clone());
 				resized
 			};
 			
@@ -112,7 +115,7 @@ impl TargetGenerator {
 			};
 			
 			// add annotation to coco here
-			self.coco_generator.add_annotation(background_id, obj.object_class as u32, 0, vec![], (obj_w * obj_h) as f64, bbox);
+			self.coco_generator.lock().unwrap().add_annotation(background_id, obj.object_class, 0, vec![], (obj_w * obj_h) as f64, bbox);
 			
 			placed_objects.push(bbox);
 		}
@@ -120,9 +123,20 @@ impl TargetGenerator {
 		Ok(image)
 	}
 
-	pub fn generate_targets<A: AsRef<Path>>(&self, amount: u32, range_to: RangeTo<u32>, path: A) -> Result<(), GenerationError> {
+	pub fn generate_targets<A: AsRef<Path> + Sync>(&mut self, amount: u32, range_to: RangeTo<u32>, path: A) -> Result<(), GenerationError> {
 		let start = Instant::now(); // start timer
+		debug!("Generating {} targets...", amount);
 
+		let threadpool = rayon::ThreadPoolBuilder::new().num_threads(self.config.worker_threads as usize).build().unwrap();
+		
+		threadpool.install(|| {
+			(0..amount).into_par_iter().for_each(|i| {
+				let b = self.generate_target(STANDARD_PPM, thread_rng().gen_range(1..range_to.end) as u16).unwrap();
+				let path = path.as_ref().join(format!("{}.png", i));
+				b.save(path.clone()).unwrap();
+				debug!("Saved generated target to {}", path.display());
+			});
+		});
 
 
 		debug!("Generation completed, generated {} in average {}ms", amount, start.elapsed().as_millis() / amount as u128);
@@ -161,7 +175,7 @@ impl TargetGenerator {
 	}
 	
 	pub fn close(&self) {
-		self.coco_generator.save();
+		self.coco_generator.lock().unwrap().save();
 	}
 }
 
@@ -177,6 +191,20 @@ pub fn test_generate_target() {
 
 	b.save("output_1.png".to_string()).unwrap();
 	debug!("Saved generated target to output_1.png");
+	
+	tg.close();
+}
+
+#[test]
+#[ignore]
+pub fn test_generate_targets() {
+	SimpleLogger::new().init().unwrap();
+
+	let mut tg = TargetGenerator::new("output", "backgrounds", "objects", "output/annotations.json").unwrap();
+	tg.config.permit_duplicates = true;
+	tg.config.permit_collisions = false;
+	tg.config.visualize_bboxes = true;
+	tg.generate_targets(500, ..6u32, "output").unwrap();
 	
 	tg.close();
 }

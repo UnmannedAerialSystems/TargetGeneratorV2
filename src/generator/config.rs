@@ -6,7 +6,8 @@ pub struct TargetGeneratorConfig {
 	pub maskover_color: Option<Rgba<u8>>,
 	pub permit_duplicates: bool,
 	pub permit_collisions: bool,
-	pub cache_size: u8,
+	pub cache_size: u8, // TODO: currently only used for initial size, can't be changed
+	pub worker_threads: u8,
 }
 
 impl Default for TargetGeneratorConfig {
@@ -17,6 +18,7 @@ impl Default for TargetGeneratorConfig {
 			permit_duplicates: false,
 			permit_collisions: false,
 			cache_size: 10,
+			worker_threads: 15,
 		}
 	}
 }

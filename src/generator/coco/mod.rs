@@ -45,7 +45,7 @@ impl CocoGenerator {
 	}
 	
 	pub fn save(&self) {
-		let file = OpenOptions::new().write(true).create(true).open(&self.file_path).unwrap();
+		let file = OpenOptions::new().write(true).truncate(true).create(true).open(&self.file_path).unwrap();
 		
 		serde_json::to_writer_pretty(file, &self.file).unwrap();
 	}
@@ -153,7 +153,7 @@ pub struct CocoAnnotation {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CocoCategory {
-	id: u32,
+	pub(crate) id: u32,
 	name: String,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub supercategory: Option<String>,

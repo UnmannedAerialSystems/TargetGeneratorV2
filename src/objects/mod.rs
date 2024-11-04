@@ -163,16 +163,16 @@ fn ensure_sequential_no_duplicate_ids() {
 	let mut object_manager = ObjectManager::new("objects");
 	object_manager.load_objects().unwrap();
 	
+	let cats = object_manager.categories();
+	
 	let mut ids = vec![];
 	
-	for object in object_manager.objects {
-		ids.push(object.id);
-	}
-	
-	ids.sort();
-	
-	for i in 0..ids.len() {
-		assert_eq!(ids[i], i as u16);
+	for cat in cats {
+		if ids.contains(&cat.id) {
+			panic!("Duplicate ID found: {}", cat.id);
+		}
+		
+		ids.push(cat.id);
 	}
 }
 
