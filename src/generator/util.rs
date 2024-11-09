@@ -1,12 +1,13 @@
-use log::debug;
 use crate::generator::error::GenerationError;
 
-pub const STANDARD_PPM: f32 = 25.0;
+/// The standard Pixels Per Meter value that is used to calculate the size of objects in pixels.
+/// In reality this value is dependent on the altitude of the drone and various properties of the
+/// camera that is being used.
+pub const STANDARD_PPM: f32 = 35.0;
 
 /// Use the real size of an object and the Pixels Per Meter value to calculate the size in 
 /// pixels that it should be in order to be at scale
 fn resize_ratio(object_real_size: f32, pixels_per_meter: f32) -> f32 {
-	debug!("Real size: {}, Pixels per meter: {}", object_real_size, pixels_per_meter);
 	object_real_size * pixels_per_meter
 }
 
@@ -25,4 +26,16 @@ pub fn new_sizes(object_width: u32, object_height: u32, pixels_per_meter: f32, r
 	}
 	
 	Ok((new_width, new_height))
+}
+
+pub fn is_image_type(path: &str) -> bool {
+	path.ends_with(".png") || path.ends_with(".jpg") || path.ends_with(".jpeg")
+}
+
+#[test]
+fn test_is_image_type() {
+	assert_eq!(is_image_type("test.png"), true);
+	assert_eq!(is_image_type("test.jpg"), true);
+	assert_eq!(is_image_type("test.jpeg"), true);
+	assert_eq!(is_image_type("test.txt"), false);
 }

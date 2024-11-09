@@ -3,14 +3,11 @@ use std::ops::RangeTo;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use image::{DynamicImage, GenericImage, ImageBuffer, Rgba, RgbaImage};
+use image::{DynamicImage, ExtendedColorType, ImageEncoder, Rgba, RgbaImage};
+use image::codecs::png::{CompressionType, PngEncoder};
 use image::imageops::FilterType;
-use imageproc::drawing::draw_text_mut;
-use log::{debug, trace};
+use log::{debug, trace, LevelFilter};
 use rand::{thread_rng, Rng};
-use simple_logger::SimpleLogger;
-use strum::Display;
-use thiserror::Error;
 use error::GenerationError;
 use util::STANDARD_PPM;
 use crate::backgrounds::BackgroundLoader;
@@ -18,7 +15,8 @@ use crate::generator::coco::{BoundingBox, CocoCategoryInfo, CocoGenerator};
 use crate::generator::config::TargetGeneratorConfig;
 use crate::objects::{ObjectManager};
 use moka::sync::{Cache, CacheBuilder};
-use rayon::iter::{IntoParallelIterator, ParallelBridge};
+use rayon::iter::{IntoParallelIterator};
+use simple_logger::SimpleLogger;
 
 pub mod coco;
 pub mod error;
@@ -82,11 +80,15 @@ impl TargetGenerator {
 		for obj in set {
 			let clone = &obj.dynamic_image.clone();
 			let (obj_w, obj_h) = (obj.dynamic_image.width(), obj.dynamic_image.height());
-			let (x, y) = self.generate_new_location_no_collision((w, h), (obj_w, obj_h), &placed_objects)?;
+			let (x, y) = if let Ok((x, y)) = self.generate_new_location_no_collision((w, h), (obj_w, obj_h), &placed_objects) {
+				(x, y)
+			} else {
+				continue; // TODO: maybe it should break instead? might result in occasional empty images if so
+			};
 			trace!("Placing object at {}, {}", x, y);
 			
 			let (obj_w, obj_h) = util::new_sizes(obj_w, obj_h, pixels_per_meter, obj.object_width_meters)?;
-			debug!("Resizing object to {}x{}", obj_w, obj_h);
+			trace!("Resizing object to {}x{}", obj_w, obj_h);
 			
 			// overlay respects transparent pixels unlike copy_from
 			let resized = if let Some(resized) = self.resized_cache.get(&format!("{}x{}_{}", obj_w, obj_h, obj.object_class)) {
@@ -133,7 +135,15 @@ impl TargetGenerator {
 			(0..amount).into_par_iter().for_each(|i| {
 				let b = self.generate_target(STANDARD_PPM, thread_rng().gen_range(1..range_to.end) as u16).unwrap();
 				let path = path.as_ref().join(format!("{}.png", i));
-				b.save(path.clone()).unwrap();
+
+				if self.config.compress {
+					let mut file = std::fs::File::create(path.clone()).unwrap();
+					let encoder = PngEncoder::new_with_quality(&mut file, CompressionType::Best, image::codecs::png::FilterType::Avg);
+					encoder.write_image(&b, b.width(), b.height(), ExtendedColorType::Rgba8).unwrap();
+				} else {
+					b.save(path.clone()).unwrap();
+				}
+
 				debug!("Saved generated target to {}", path.display());
 			});
 		});
@@ -182,12 +192,12 @@ impl TargetGenerator {
 #[test]
 #[ignore]
 pub fn test_generate_target() {
-	SimpleLogger::new().init().unwrap();
+	SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
 
 	let mut tg = TargetGenerator::new("output", "backgrounds", "objects", "output/annotations.json").unwrap();
 	tg.config.permit_duplicates = true;
-	tg.config.permit_collisions = true;
-	let b = tg.generate_target(STANDARD_PPM, 200).unwrap();
+	tg.config.permit_collisions = false;
+	let b = tg.generate_target(STANDARD_PPM, 5).unwrap();
 
 	b.save("output_1.png".to_string()).unwrap();
 	debug!("Saved generated target to output_1.png");
@@ -204,7 +214,7 @@ pub fn test_generate_targets() {
 	tg.config.permit_duplicates = true;
 	tg.config.permit_collisions = false;
 	tg.config.visualize_bboxes = true;
-	tg.generate_targets(500, ..6u32, "output").unwrap();
+	tg.generate_targets(50, ..6u32, "output").unwrap();
 	
 	tg.close();
 }

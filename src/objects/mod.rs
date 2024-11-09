@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use image::{DynamicImage, RgbaImage};
-use log::warn;
+use image::{DynamicImage};
+use log::{warn};
 use rand::prelude::SliceRandom;
 use serde::{Deserialize, Serialize};
-use strum::{EnumIter, IntoEnumIterator};
-use crate::generator::coco::{BoundingBox, CocoCategory, CocoCategoryInfo};
+use crate::generator::coco::{CocoCategory, CocoCategoryInfo};
 use crate::generator::config::TargetGeneratorConfig;
 use crate::generator::error::GenerationError;
+use crate::generator::util;
 
 #[derive(Debug)]
 pub struct ObjectManager {
@@ -27,30 +27,32 @@ impl ObjectManager {
 	
 	/// Load training objects into the buffer
 	pub fn load_objects(&mut self) -> Result<(), GenerationError> {
-		let mut entries = std::fs::read_dir(&self.path_buf)?;
+		let entries = std::fs::read_dir(&self.path_buf)?;
 		
 		// retrieve objects.json file that holds all info about our training objects
-		let out = entries.find(|entry| {
-			let entry = entry.as_ref().unwrap().path();
-			
-			entry.file_name().unwrap().to_str().unwrap() == "objects.json"
-		}).ok_or(GenerationError::MissingObjectsJSON)??;
+		let out = self.path_buf.join("objects.json");
+		let file = std::fs::read_to_string(&out).ok().ok_or(GenerationError::MissingObjectsJSON)?;
 		
-		let object_details_file: ObjectDetailsFile = serde_json::from_str(&std::fs::read_to_string(out.path())?)?;
+		let object_details_file: ObjectDetailsFile = serde_json::from_str(&file)?;
+		
+		let mut id = 0;
 		
 		for entry in entries {
 			let entry = entry?;
 			let path = entry.path();
 			
-			let mut name_parts = path.file_stem()
-				.ok_or(GenerationError::GenericError("Couldn't extract filename!".to_string()))?
-				.to_str().unwrap()
-				.split('_');
+			if path.is_dir() || !util::is_image_type(&path.as_os_str().to_str().ok_or(GenerationError::GenericError("Failed to convert path to string".to_string()))?) {
+				continue;
+			}
 			
-			let prefix = name_parts.next().unwrap();
-			let id = name_parts.next().unwrap().parse::<u16>()?;
+			let file_name = if let Some(file_name) = path.file_name() {
+				file_name.to_str().unwrap()
+			} else {
+				warn!("Failed to get file name for object: {}", path.display());
+				continue;
+			};
 			
-			let object_details = object_details_file.object_images.get(path.file_name().unwrap().to_str().unwrap());
+			let object_details = object_details_file.object_images.get(file_name);
 			
 			if object_details.is_none() {
 				warn!("No object details found for object: {}", path.display());
@@ -59,7 +61,7 @@ impl ObjectManager {
 			
 			let object_details = object_details.unwrap();
 			
-			self.object_set.insert((object_details.object_type, prefix.to_string()));
+			self.object_set.insert((object_details.object_type, file_name.to_string()));
 			
 			let dynamic_image = image::open(path)?;
 			self.objects.push(Object {
@@ -68,6 +70,8 @@ impl ObjectManager {
 				dynamic_image,
 				object_width_meters: object_details.ground_width,
 			});
+			
+			id += 1;
 		}
 		
 		Ok(())
@@ -116,12 +120,6 @@ pub struct Object {
 	id: u16,
 	pub(crate) dynamic_image: DynamicImage,
 	pub(crate) object_width_meters: f32,
-}
-
-impl Object {
-	pub fn to_rgba_image(&self) -> RgbaImage {
-		self.dynamic_image.to_rgba8()
-	}
 }
 
 impl PartialEq for Object {

@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use chrono::{DateTime, Local};
 use image::{RgbaImage};
-use log::{debug, trace, warn};
+use log::{debug, warn};
 use rand::seq::SliceRandom;
 use rand::{thread_rng};
 use rayon::iter::ParallelBridge;
@@ -18,7 +18,7 @@ pub struct BackgroundLoader {
 impl BackgroundLoader {
 	pub fn new<Q: AsRef<Path>>(path: Q) -> Result<BackgroundLoader, GenerationError> {
 		let dir = path.as_ref().to_path_buf();
-		let mut v = Arc::new(Mutex::new(vec![])); // mutex for multi-thread access
+		let v = Arc::new(Mutex::new(vec![])); // mutex for multi-thread access
 
 		let start = Instant::now();
 
@@ -80,17 +80,4 @@ pub struct BackgroundImage {
 	pub filename: String,
 	pub date_captured: String,
 	pub id: u32,
-}
-
-#[test]
-#[ignore]
-fn test_bg_loader() {
-	simple_logger::SimpleLogger::new().init().unwrap();
-
-	let bg_loader = BackgroundLoader::new("backgrounds").unwrap();
-
-	/*(0..10).par_bridge().for_each(|i| {
-		/*let bg = bg_loader.random_augment(Some((-20, 20)), true).unwrap();
-		bg.save(format!("output/output{}.png", i)).unwrap();*/
-	});*/
 }

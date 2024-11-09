@@ -1,20 +1,32 @@
 {
   "object_images": {
     "bicycle_1.png": {
-      "ground_width": 1.73,
+      "ground_width": 1.63,
       "object_type": 0
     },
     "bicycle_2.png": {
-      "ground_width": 1.73,
+      "ground_width": 1.63,
       "object_type": 0
     },
     "tire_1.png": {
-      "ground_width": 1.0,
+      "ground_width": 0.6,
       "object_type": 1
     },
     "tire_2.png": {
-      "ground_width": 1.0,
+      "ground_width": 0.534,
       "object_type": 1
+    },
+    "mannequin_1.png": {
+      "ground_width": 1.651,
+      "object_type": 2
+    },
+    "mannequin_2.png": {
+      "ground_width": 1.4,
+      "object_type": 2
+    },
+    "mannequin_3.png": {
+      "ground_width": 1.52,
+      "object_type": 2
     }
   },
   "object_types": {
@@ -23,6 +35,9 @@
     },
     "1": {
       "name": "tire"
+    },
+    "2": {
+      "name": "mannequin"
     }
   }
 }
