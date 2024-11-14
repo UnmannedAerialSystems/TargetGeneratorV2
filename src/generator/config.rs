@@ -15,7 +15,8 @@ pub struct TargetGeneratorConfig {
 	pub permit_collisions: bool,
 	pub cache_size: u8, // TODO: currently only used for initial size, can't be changed
 	pub worker_threads: u8,
-	pub compress: bool
+	pub compress: bool,
+	pub do_random_rotation: bool,
 }
 
 impl Default for TargetGeneratorConfig {
@@ -27,7 +28,8 @@ impl Default for TargetGeneratorConfig {
 			permit_collisions: false,
 			cache_size: 10,
 			worker_threads: 15,
-			compress: true
+			compress: true,
+			do_random_rotation: true
 		}
 	}
 }

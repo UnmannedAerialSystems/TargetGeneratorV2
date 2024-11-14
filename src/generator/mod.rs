@@ -1,22 +1,22 @@
+use crate::backgrounds::BackgroundLoader;
+use crate::generator::coco::{BoundingBox, CocoCategoryInfo, CocoGenerator};
+use crate::generator::config::TargetGeneratorConfig;
+use crate::objects::ObjectManager;
+use error::GenerationError;
+use image::codecs::png::{CompressionType, PngEncoder};
+use image::imageops::FilterType;
+use image::{DynamicImage, ExtendedColorType, ImageEncoder, Rgba, RgbaImage};
+use log::{debug, trace, LevelFilter};
+use moka::sync::{Cache, CacheBuilder};
+use rand::{thread_rng, Rng};
 use rayon::iter::ParallelIterator;
+use rayon::iter::IntoParallelIterator;
+use simple_logger::SimpleLogger;
 use std::ops::RangeTo;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use image::{DynamicImage, ExtendedColorType, ImageEncoder, Rgba, RgbaImage};
-use image::codecs::png::{CompressionType, PngEncoder};
-use image::imageops::FilterType;
-use log::{debug, trace, LevelFilter};
-use rand::{thread_rng, Rng};
-use error::GenerationError;
 use util::STANDARD_PPM;
-use crate::backgrounds::BackgroundLoader;
-use crate::generator::coco::{BoundingBox, CocoCategoryInfo, CocoGenerator};
-use crate::generator::config::TargetGeneratorConfig;
-use crate::objects::{ObjectManager};
-use moka::sync::{Cache, CacheBuilder};
-use rayon::iter::{IntoParallelIterator};
-use simple_logger::SimpleLogger;
 
 pub mod coco;
 pub mod error;
@@ -98,7 +98,18 @@ impl TargetGenerator {
 				self.resized_cache.insert(format!("{}x{}_{}", obj_w, obj_h, obj.object_class), resized.clone());
 				resized
 			};
+
+			let resized = if self.config.do_random_rotation {
+				let angle = thread_rng().gen_range(0.0..720.0); // random rotation including upside down
+				// let rotated = util::rotate_image(&resized, angle);
+				let rotated = util::rotate_90s(&resized, angle);
+				rotated
+			} else {
+				resized // return as is if random rotation is not performed
+			};
 			
+			let (obj_w, obj_h) = (resized.width(), resized.height());
+
 			image::imageops::overlay(&mut image, &resized, x as i64, y as i64);
 			
 			if self.config.visualize_bboxes {
@@ -208,7 +219,7 @@ pub fn test_generate_target() {
 #[test]
 #[ignore]
 pub fn test_generate_targets() {
-	SimpleLogger::new().init().unwrap();
+	SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
 
 	let mut tg = TargetGenerator::new("output", "backgrounds", "objects", "output/annotations.json").unwrap();
 	tg.config.permit_duplicates = true;

@@ -1,4 +1,9 @@
 use crate::generator::error::GenerationError;
+use image::metadata::Orientation;
+use image::DynamicImage;
+use imageproc::drawing::Canvas;
+use imageproc::geometric_transformations::Interpolation;
+use std::cmp::max;
 
 /// The standard Pixels Per Meter value that is used to calculate the size of objects in pixels.
 /// In reality this value is dependent on the altitude of the drone and various properties of the
@@ -28,6 +33,37 @@ pub fn new_sizes(object_width: u32, object_height: u32, pixels_per_meter: f32, r
 	Ok((new_width, new_height))
 }
 
+pub fn rotate_90s(image: &DynamicImage, angle: f32) -> DynamicImage {
+	let mut i = image.clone();
+	
+	match (angle % 90.0) as i32 {
+		1 => i.apply_orientation(Orientation::Rotate90),
+		2 => i.apply_orientation(Orientation::Rotate180),
+		3 => i.apply_orientation(Orientation::Rotate270),
+		_ => (),
+	}
+	
+	i
+}
+
+pub fn post_rotate_dimension(width: u32, height: u32, angle: f32) -> (u32, u32) {
+	let (width, height) = (width as f32, height as f32);
+	let angle = angle.to_radians();
+	let (sin, cos) = angle.sin_cos();
+
+	let new_width = (width * cos + height * sin).abs() as u32;
+	let new_height = (width * sin + height * cos).abs() as u32;
+
+	(new_width, new_height)
+}
+
+// TODO: various problems with this at present. Cuts off the image mostly in multiple ways
+pub fn rotate_image(image: &DynamicImage, angle: f32) -> DynamicImage {
+	// 
+	
+	todo!()
+}
+
 pub fn is_image_type(path: &str) -> bool {
 	path.ends_with(".png") || path.ends_with(".jpg") || path.ends_with(".jpeg")
 }
@@ -38,4 +74,11 @@ fn test_is_image_type() {
 	assert_eq!(is_image_type("test.jpg"), true);
 	assert_eq!(is_image_type("test.jpeg"), true);
 	assert_eq!(is_image_type("test.txt"), false);
+}
+
+#[test]
+fn test_resize_ratio() {
+	assert_eq!(resize_ratio(1.0, 35.0), 35.0);
+	assert_eq!(resize_ratio(1.0, 70.0), 70.0);
+	assert_eq!(resize_ratio(1.0, 105.0), 105.0);
 }

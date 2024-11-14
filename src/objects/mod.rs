@@ -35,7 +35,7 @@ impl ObjectManager {
 		
 		let object_details_file: ObjectDetailsFile = serde_json::from_str(&file)?;
 		
-		let mut id = 0;
+		let mut id = 1;
 		
 		for entry in entries {
 			let entry = entry?;
