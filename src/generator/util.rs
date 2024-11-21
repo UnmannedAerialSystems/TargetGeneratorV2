@@ -1,9 +1,6 @@
 use crate::generator::error::GenerationError;
 use image::metadata::Orientation;
 use image::DynamicImage;
-use imageproc::drawing::Canvas;
-use imageproc::geometric_transformations::Interpolation;
-use std::cmp::max;
 
 /// The standard Pixels Per Meter value that is used to calculate the size of objects in pixels.
 /// In reality this value is dependent on the altitude of the drone and various properties of the

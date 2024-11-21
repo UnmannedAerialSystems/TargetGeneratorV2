@@ -31,7 +31,7 @@ pub struct TargetGenerator {
 	pub object_manager: ObjectManager,
 	background_loader: BackgroundLoader,
 	coco_generator: Arc<Mutex<CocoGenerator>>,
-	config: TargetGeneratorConfig,
+	pub(crate) config: TargetGeneratorConfig,
 	resized_cache: Cache<String, DynamicImage>,
 }
 
