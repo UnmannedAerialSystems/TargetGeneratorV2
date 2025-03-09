@@ -17,7 +17,7 @@ This tool was made to compete in the [SUAS](https://suas-competition.org/) compe
 To run the tool, you must install Rust on your machine
 
 1. Download Rust from [here](https://www.rust-lang.org/tools/install)
-2. Navigate to the root of the project after cloning it your machine
+2. Navigate to the root of the project after cloning it to your machine
    - `git clone https://github.com/dec4234/TargetGeneratorV2` 
 3. Run `cargo run --release` to generate the images
    - Note that the tool will eventually include custom CLI options to give it more flexibility.

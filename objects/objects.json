@@ -27,6 +27,22 @@
     "mannequin_3.png": {
       "ground_width": 1.52,
       "object_type": 2
+    },
+    "stop_sign.png": {
+      "ground_width": 0.76,
+      "object_type": 3
+    },
+    "baseball_bat_1.png": {
+      "ground_width": 1.067,
+      "object_type": 4
+    },
+    "baseball_bat_2.png": {
+      "ground_width": 1.067,
+      "object_type": 4
+    },
+    "baseball_bat_3.png": {
+      "ground_width": 1.067,
+      "object_type": 4
     }
   },
   "object_types": {
@@ -38,6 +54,12 @@
     },
     "2": {
       "name": "mannequin"
+    },
+    "3": {
+      "name": "stop_sign"
+    },
+    "4": {
+      "name": "baseball_bat"
     }
   }
 }
