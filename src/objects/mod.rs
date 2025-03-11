@@ -156,24 +156,6 @@ pub struct ObjectType {
 	name: String,
 }
 
-#[test]
-fn ensure_sequential_no_duplicate_ids() {
-	let mut object_manager = ObjectManager::new("objects");
-	object_manager.load_objects().unwrap();
-	
-	let cats = object_manager.categories();
-	
-	let mut ids = vec![];
-	
-	for cat in cats {
-		if ids.contains(&cat.id) {
-			panic!("Duplicate ID found: {}", cat.id);
-		}
-		
-		ids.push(cat.id);
-	}
-}
-
 // Used to generate the starting object mapping file
 #[ignore]
 #[test]

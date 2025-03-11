@@ -123,6 +123,94 @@
     "boat_3.png": {
       "ground_width": 1,
       "object_type": 10
+    },
+    "bus_1.png": {
+      "ground_width": 3,
+      "object_type": 11
+    },
+    "bus_2.png": {
+      "ground_width": 3,
+      "object_type": 11
+    },
+    "bus_3.png": {
+      "ground_width": 3,
+      "object_type": 11
+    },
+    "sportsball_1.png": {
+      "ground_width": 0.2,
+      "object_type": 12
+    },
+    "sportsball_2.png": {
+      "ground_width": 0.2,
+      "object_type": 12
+    },
+    "sportsball_3.png": {
+      "ground_width": 0.35,
+      "object_type": 12
+    },
+    "sportsball_4.png": {
+      "ground_width": 0.35,
+      "object_type": 12
+    },
+    "sportsball_5.png": {
+      "ground_width": 0.3,
+      "object_type": 12
+    },
+    "sportsball_6.png": {
+      "ground_width": 0.3,
+      "object_type": 12
+    },
+    "sportsball_7.png": {
+      "ground_width": 0.25,
+      "object_type": 12
+    },
+    "sportsball_8.png": {
+      "ground_width": 0.25,
+      "object_type": 12
+    },
+    "umbrella_1.png": {
+      "ground_width": 1.2,
+      "object_type": 13
+    },
+    "umbrella_2.png": {
+      "ground_width": 2.1,
+      "object_type": 13
+    },
+    "umbrella_3.png": {
+      "ground_width": 2.4,
+      "object_type": 13
+    },
+    "umbrella_4.png": {
+      "ground_width": 2.6,
+      "object_type": 13
+    },
+    "umbrella_5.png": {
+      "ground_width": 1.1,
+      "object_type": 13
+    },
+    "suitcase_1.png": {
+      "ground_width": 1.2,
+      "object_type": 14
+    },
+    "suitcase_2.png": {
+      "ground_width": 1.2,
+      "object_type": 14
+    },
+    "suitcase_3.png": {
+      "ground_width": 1.2,
+      "object_type": 14
+    },
+    "tennis_racket_1.png": {
+      "ground_width": 0.7,
+      "object_type": 15
+    },
+    "tennis_racket_2.png": {
+      "ground_width": 0.7,
+      "object_type": 15
+    },
+    "tennis_racket_3.png": {
+      "ground_width": 0.7,
+      "object_type": 15
     }
   },
   "object_types": {
@@ -158,6 +246,21 @@
     },
     "10": {
         "name": "boat"
+    },
+    "11": {
+        "name": "bus"
+    },
+    "12": {
+        "name": "sportsball"
+    },
+    "13": {
+        "name": "umbrella"
+    },
+    "14": {
+        "name": "suitcase"
+    },
+    "15": {
+        "name": "tennis_racket"
     }
   }
 }

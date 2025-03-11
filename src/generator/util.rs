@@ -5,7 +5,7 @@ use image::DynamicImage;
 /// The standard Pixels Per Meter value that is used to calculate the size of objects in pixels.
 /// In reality this value is dependent on the altitude of the drone and various properties of the
 /// camera that is being used.
-pub const STANDARD_PPM: f32 = 35.0;
+pub const STANDARD_PPM: f32 = 45.0;
 
 /// Use the real size of an object and the Pixels Per Meter value to calculate the size in 
 /// pixels that it should be in order to be at scale
