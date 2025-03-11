@@ -43,6 +43,86 @@
     "baseball_bat_3.png": {
       "ground_width": 1.067,
       "object_type": 4
+    },
+    "snowboard_1.png": {
+      "ground_width": 1.5,
+      "object_type": 5
+    },
+    "snowboard_2.png": {
+      "ground_width": 1.5,
+      "object_type": 5
+    },
+    "snowboard_3.png": {
+      "ground_width": 1.5,
+      "object_type": 5
+    },
+    "skis_1.png": {
+      "ground_width": 1.7,
+      "object_type": 6
+    },
+    "skis_2.png": {
+      "ground_width": 1.7,
+      "object_type": 6
+    },
+    "skis_3.png": {
+      "ground_width": 1.7,
+      "object_type": 6
+    },
+    "car_1.png": {
+      "ground_width": 0.8,
+      "object_type": 7
+    },
+    "car_2.png": {
+      "ground_width": 0.8,
+      "object_type": 7
+    },
+    "car_3.png": {
+      "ground_width": 0.85,
+      "object_type": 7
+    },
+    "car_4.png": {
+      "ground_width": 0.95,
+      "object_type": 7
+    },
+    "motorcycle_1.png": {
+      "ground_width": 0.8,
+      "object_type": 8
+    },
+    "motorcycle_2.png": {
+      "ground_width": 0.8,
+      "object_type": 8
+    },
+    "motorcycle_3.png": {
+      "ground_width": 0.8,
+      "object_type": 8
+    },
+    "airplane_1.png": {
+      "ground_width": 1.5,
+      "object_type": 9
+    },
+    "airplane_2.png": {
+      "ground_width": 1.5,
+      "object_type": 9
+    },
+    "airplane_3.png": {
+      "ground_width": 1.5,
+      "object_type": 9
+    },
+    "airplane_4.png": {
+      "ground_width": 1.5,
+      "object_type": 9
+    },
+    "boat_1.png": {
+      "ground_width": 1,
+      "object_type": 10
+    },
+    "boat_2.png": {
+      "ground_width": 1,
+      "object_type": 10
+    },
+    "boat_3.png": {
+      "ground_width": 1,
+      "object_type": 10
     }
   },
   "object_types": {
@@ -60,6 +140,24 @@
     },
     "4": {
       "name": "baseball_bat"
+    },
+    "5": {
+        "name": "snowboard"
+    },
+    "6": {
+        "name": "skis"
+    },
+    "7": {
+        "name": "car"
+    },
+    "8": {
+        "name": "motorcycle"
+    },
+    "9": {
+        "name": "airplane"
+    },
+    "10": {
+        "name": "boat"
     }
   }
 }

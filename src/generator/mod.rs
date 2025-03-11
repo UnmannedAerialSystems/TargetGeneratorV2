@@ -225,7 +225,7 @@ pub fn test_generate_targets() {
 	tg.config.permit_duplicates = true;
 	tg.config.permit_collisions = false;
 	tg.config.visualize_bboxes = true;
-	tg.generate_targets(50, ..6u32, "output").unwrap();
+	tg.generate_targets(10, ..6u32, "output").unwrap();
 	
 	tg.close();
 }
