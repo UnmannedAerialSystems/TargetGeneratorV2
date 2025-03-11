@@ -221,12 +221,12 @@ pub fn test_generate_target() {
 pub fn test_generate_targets() {
 	SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
 
-	let mut tg = TargetGenerator::new("output", "backgrounds", "objects", "output/annotations.json").unwrap();
+	let mut tg = TargetGenerator::new("../output", "../backgrounds", "../objects", "../output/annotations.json").unwrap();
 	tg.config.permit_duplicates = true;
 	tg.config.permit_collisions = false;
 	tg.config.visualize_bboxes = true;
 	tg.config.do_random_rotation = true;
-	tg.generate_targets(10, ..6u32, "output").unwrap();
+	tg.generate_targets(10, ..6u32, "../output").unwrap();
 	
 	tg.close();
 }
