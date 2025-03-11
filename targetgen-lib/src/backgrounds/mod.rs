@@ -53,7 +53,7 @@ impl BackgroundLoader {
 				warn!("Failed to load image: {}", path_name);
 			}
 			
-			debug!("Loaded image in {}ms: {}", start.elapsed().as_millis(), path_name);
+			debug!("Loaded image in {}ms: {}", start.elapsed().as_millis(), path_name.to_string().replace("\\", "/"));
 		});
 		
 		let x = Ok(Self { // don't ask why we need to make a variable here, it just works

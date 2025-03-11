@@ -26,7 +26,6 @@ pub mod config;
 const COLLISION_ATTEMPTS: u32 = 15;
 
 pub struct TargetGenerator {
-	output: PathBuf,
 	backgrounds_path: PathBuf,
 	pub object_manager: ObjectManager,
 	background_loader: BackgroundLoader,
@@ -36,7 +35,7 @@ pub struct TargetGenerator {
 }
 
 impl TargetGenerator {
-	pub fn new<Q: AsRef<Path>>(output: Q, background_path: Q, objects_path: Q, annotations_path: Q) -> Result<Self, GenerationError> {
+	pub fn new<Q: AsRef<Path>>(background_path: Q, objects_path: Q, annotations_path: Q) -> Result<Self, GenerationError> {
 
 		let mut object_manager = ObjectManager::new(objects_path);
 		object_manager.load_objects()?;
@@ -51,7 +50,6 @@ impl TargetGenerator {
 			.build();
 		
 		Ok(Self {
-			output: output.as_ref().to_path_buf(),
 			backgrounds_path: background_path.as_ref().to_path_buf(),
 			object_manager,
 			background_loader: BackgroundLoader::new(background_path)?,
@@ -155,7 +153,7 @@ impl TargetGenerator {
 					b.save(path.clone()).unwrap();
 				}
 
-				debug!("Saved generated target to {}", path.display());
+				debug!("Saved generated target to {}", path.display().to_string().replace("\\", "/"));
 			});
 		});
 
@@ -205,7 +203,7 @@ impl TargetGenerator {
 pub fn test_generate_target() {
 	SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
 
-	let mut tg = TargetGenerator::new("output", "backgrounds", "objects", "output/annotations.json").unwrap();
+	let mut tg = TargetGenerator::new("backgrounds", "objects", "output/annotations.json").unwrap();
 	tg.config.permit_duplicates = true;
 	tg.config.permit_collisions = false;
 	let b = tg.generate_target(STANDARD_PPM, 5).unwrap();
@@ -221,7 +219,7 @@ pub fn test_generate_target() {
 pub fn test_generate_targets() {
 	SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
 
-	let mut tg = TargetGenerator::new("../output", "../backgrounds", "../objects", "../output/annotations.json").unwrap();
+	let mut tg = TargetGenerator::new("../backgrounds", "../objects", "../output/annotations.json").unwrap();
 	tg.config.permit_duplicates = true;
 	tg.config.permit_collisions = false;
 	tg.config.visualize_bboxes = true;
