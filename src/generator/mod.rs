@@ -100,7 +100,7 @@ impl TargetGenerator {
 			};
 
 			let resized = if self.config.do_random_rotation {
-				let angle = thread_rng().gen_range(0.0..720.0); // random rotation including upside down
+				let angle = thread_rng().gen_range(0..360); // random rotation including upside down
 				// let rotated = util::rotate_image(&resized, angle);
 				let rotated = util::rotate_90s(&resized, angle);
 				rotated
@@ -225,6 +225,7 @@ pub fn test_generate_targets() {
 	tg.config.permit_duplicates = true;
 	tg.config.permit_collisions = false;
 	tg.config.visualize_bboxes = true;
+	tg.config.do_random_rotation = true;
 	tg.generate_targets(10, ..6u32, "output").unwrap();
 	
 	tg.close();

@@ -30,10 +30,12 @@ pub fn new_sizes(object_width: u32, object_height: u32, pixels_per_meter: f32, r
 	Ok((new_width, new_height))
 }
 
-pub fn rotate_90s(image: &DynamicImage, angle: f32) -> DynamicImage {
+pub fn rotate_90s(image: &DynamicImage, angle: i32) -> DynamicImage {
 	let mut i = image.clone();
 	
-	match (angle % 90.0) as i32 {
+	let angle = (angle) / 90;
+	
+	match angle {
 		1 => i.apply_orientation(Orientation::Rotate90),
 		2 => i.apply_orientation(Orientation::Rotate180),
 		3 => i.apply_orientation(Orientation::Rotate270),
