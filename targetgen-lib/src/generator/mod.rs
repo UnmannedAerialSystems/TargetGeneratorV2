@@ -20,7 +20,7 @@ use util::STANDARD_PPM;
 
 pub mod coco;
 pub mod error;
-pub(crate) mod util;
+pub mod util;
 pub mod config;
 
 const COLLISION_ATTEMPTS: u32 = 15;
@@ -30,7 +30,7 @@ pub struct TargetGenerator {
 	pub object_manager: ObjectManager,
 	background_loader: BackgroundLoader,
 	coco_generator: Arc<Mutex<CocoGenerator>>,
-	pub(crate) config: TargetGeneratorConfig,
+	pub config: TargetGeneratorConfig,
 	resized_cache: Cache<String, DynamicImage>,
 }
 

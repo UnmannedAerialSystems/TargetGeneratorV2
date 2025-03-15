@@ -1,3 +1,5 @@
+use std::fs;
+use std::path::Path;
 use crate::generator::error::GenerationError;
 use image::metadata::Orientation;
 use image::DynamicImage;
@@ -65,6 +67,18 @@ pub fn rotate_image(image: &DynamicImage, angle: f32) -> DynamicImage {
 
 pub fn is_image_type(path: &str) -> bool {
 	path.ends_with(".png") || path.ends_with(".jpg") || path.ends_with(".jpeg")
+}
+
+pub fn cleanup_output<P: AsRef<Path>>(folder_path: P) -> std::io::Result<()> {
+	for entry in fs::read_dir(folder_path)? {
+		let entry = entry?;
+		let path = entry.path();
+		
+		if entry.file_type()?.is_file() && (is_image_type(path.to_str().unwrap()) || path.extension().unwrap() == "json") {
+			fs::remove_file(entry.path())?;
+		}
+	}
+	Ok(())
 }
 
 #[test]
