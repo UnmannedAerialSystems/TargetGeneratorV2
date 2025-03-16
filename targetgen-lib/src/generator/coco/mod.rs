@@ -44,6 +44,7 @@ impl CocoGenerator {
 		s
 	}
 	
+	/// Write the contents of the annotations.json file to disk
 	pub fn save(&self) {
 		let file = OpenOptions::new().write(true).truncate(true).create(true).open(&self.file_path).unwrap();
 		

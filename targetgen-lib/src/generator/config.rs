@@ -1,21 +1,24 @@
-//! Configuration for the target generator, which consists of the following:
-//! - visualize_bboxes: whether or not to visualize the bounding boxes of the objects
-//! - maskover_color: the color to use for the maskover effect, which basically fills the bounding box with a color
-//! - permit_duplicates: whether or not to allow duplicates of the same object within the same generated target image
-//! - permit_collisions: whether or not to allow objects to collide with each other, AKA overlap
-//! - cache_size: the size of the cache in MBs, which holds resized objects (initialization only)
-//! - worker_threads: the number of worker threads to use for generating the target image
 use image::Rgba;
 
+/// The config values for generating target images. Setting these values is optional, they will default 
+/// to the predefined values.
 #[derive(Debug, Clone, PartialEq, Copy)]
 pub struct TargetGeneratorConfig {
+	/// whether or not to visualize the bounding boxes of the objects
 	pub visualize_bboxes: bool,
+	/// the color to use for the maskover effect, which basically fills the bounding box with a color
 	pub maskover_color: Option<Rgba<u8>>,
+	/// whether or not to allow duplicates of the same object within the same generated target image
 	pub permit_duplicates: bool,
+	/// whether or not to allow objects to collide with each other, AKA overlap
 	pub permit_collisions: bool,
+	/// the size of the cache in MBs, which holds resized objects (initialization only)
 	pub cache_size: u8, // TODO: currently only used for initial size, can't be changed
+	/// The number of worker threads to use for generating the target images
 	pub worker_threads: u8,
+	/// Whether or not to compress the generated target images
 	pub compress: bool,
+	/// Should the objects be randomly rotated (currently only supports 90 degree rotations)
 	pub do_random_rotation: bool,
 }
 

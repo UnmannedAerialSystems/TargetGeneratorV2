@@ -21,3 +21,18 @@ fn create_live_test() {
 
 	tg.close();
 }
+
+#[ignore]
+#[test]
+fn create_full_set() {
+	SimpleLogger::new().with_level(LevelFilter::Debug).init().unwrap();
+
+	generator::util::cleanup_output("output").unwrap();
+
+	let mut tg = TargetGenerator::new("backgrounds", "objects", "output/annotations.json").unwrap();
+	tg.config.permit_collisions = false;
+	tg.config.do_random_rotation = true;
+	tg.generate_targets(500, ..6, "output").unwrap();
+
+	tg.close();
+}

@@ -23,6 +23,8 @@ pub mod error;
 pub mod util;
 pub mod config;
 
+/// The number of times to attempt placing an object in an image before giving up because the image
+/// is too crowded
 const COLLISION_ATTEMPTS: u32 = 15;
 
 pub struct TargetGenerator {
@@ -97,9 +99,9 @@ impl TargetGenerator {
 				resized
 			};
 
+			// random rotations in multiples of 90 degrees
 			let resized = if self.config.do_random_rotation {
 				let angle = thread_rng().gen_range(0..360); // random rotation including upside down
-				// let rotated = util::rotate_image(&resized, angle);
 				let rotated = util::rotate_90s(&resized, angle);
 				rotated
 			} else {
@@ -167,7 +169,7 @@ impl TargetGenerator {
 		let mut i = 0;
 		
 		loop {
-			if i >= COLLISION_ATTEMPTS {
+			if i >= COLLISION_ATTEMPTS { // image is too crowded
 				return Err(GenerationError::TooManyCollisions)
 			}
 			
@@ -193,6 +195,7 @@ impl TargetGenerator {
 		}
 	}
 	
+	/// Finish writing the annotations.json file
 	pub fn close(&self) {
 		self.coco_generator.lock().unwrap().save();
 	}
