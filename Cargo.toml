@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 targetgen-lib = { path = "targetgen-lib"}
-clap = {version = "4.5.20", features = ["default"]}
+clap = {version = "4.5.20", features = ["derive"]}
 simple_logger = "5.0.0"
 log = "0.4.22"

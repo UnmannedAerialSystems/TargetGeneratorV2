@@ -1,10 +1,14 @@
+mod cli_management;
+
+use clap::Parser;
 use log::LevelFilter;
 use simple_logger::SimpleLogger;
 use targetgen_lib::generator;
 use targetgen_lib::generator::TargetGenerator;
+use crate::cli_management::run;
 
 fn main() {
-    
+	run(cli_management::TargetgenCli::parse());
 }
 
 #[ignore]

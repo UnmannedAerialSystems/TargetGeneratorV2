@@ -94,4 +94,5 @@ fn test_resize_ratio() {
 	assert_eq!(resize_ratio(1.0, 35.0), 35.0);
 	assert_eq!(resize_ratio(1.0, 70.0), 70.0);
 	assert_eq!(resize_ratio(1.0, 105.0), 105.0);
+	assert_eq!(resize_ratio(2.0, 140.0), 280.0);
 }
